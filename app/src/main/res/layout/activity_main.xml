@@ -51,9 +51,28 @@
     <CheckBox
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="2x Playback Rate"
+        android:text="2x"
         android:id="@+id/checkBoxRate"
         android:layout_alignBottom="@+id/btnStop"
         android:layout_toEndOf="@+id/btnStop"
         android:layout_alignTop="@+id/btnStop" />
+
+    <SeekBar
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/seekBar"
+        android:layout_marginTop="32dp"
+        android:layout_below="@+id/btnNext"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentEnd="true"
+        android:progress="50" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text="Playback Rate: 1.0"
+        android:id="@+id/labelPlaybackRate"
+        android:layout_below="@+id/btnNext"
+        android:layout_alignParentStart="true" />
 </RelativeLayout>
