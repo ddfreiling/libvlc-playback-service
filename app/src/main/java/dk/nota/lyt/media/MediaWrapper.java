@@ -224,13 +224,22 @@ public class MediaWrapper implements Parcelable {
         return meta != null ? trim ? meta.trim() : meta : null;
     }
 
+    private String getUpdatedMetaId(Media media, int id, String current, boolean trim) {
+        String parsedValue = getMetaId(media, id, trim);
+        if (parsedValue != null && !parsedValue.equals(current)) {
+            return parsedValue;
+        } else {
+            return current;
+        }
+    }
+
     public void updateMeta(Media media) {
-        mTitle = getMetaId(media, Meta.Title, true);
-        mArtist = getMetaId(media, Meta.Artist, true);
-        mAlbum = getMetaId(media, Meta.Album, true);
-        mGenre = getMetaId(media, Meta.Genre, true);
-        mAlbumArtist = getMetaId(media, Meta.AlbumArtist, true);
-        mArtworkURL = getMetaId(media, Meta.ArtworkURL, false);
+        mTitle = getUpdatedMetaId(media, Meta.Title, mTitle, true);
+        mArtist = getUpdatedMetaId(media, Meta.Artist, mArtist, true);
+        mAlbum = getUpdatedMetaId(media, Meta.Album, mAlbum, true);
+        mGenre = getUpdatedMetaId(media, Meta.Genre, mGenre, true);
+        mAlbumArtist = getUpdatedMetaId(media, Meta.AlbumArtist, mAlbumArtist, true);
+        mArtworkURL = getUpdatedMetaId(media, Meta.ArtworkURL, mArtworkURL, false);
         mNowPlaying = getMetaId(media, Meta.NowPlaying, false);
         final String trackNumber = getMetaId(media, Meta.TrackNumber, false);
         if (!TextUtils.isEmpty(trackNumber)) {
@@ -248,6 +257,7 @@ public class MediaWrapper implements Parcelable {
         Log.d(TAG, "Artist " + mArtist);
         Log.d(TAG, "Genre " + mGenre);
         Log.d(TAG, "Album " + mAlbum);
+        Log.d(TAG, "ArtworkUrl " + mArtworkURL);
     }
 
     public void updateMeta(MediaPlayer mediaPlayer) {
@@ -309,25 +319,10 @@ public class MediaWrapper implements Parcelable {
         return mHeight;
     }
 
-    /**
-     * Returns the raw picture object. Likely to be NULL in VLC for Android
-     * due to lazy-loading.
-     *
-     * Use {@link BitmapUtil#getPictureFromCache(MediaWrapper)} instead.
-     *
-     * @return The raw picture or NULL
-     */
     public Bitmap getPicture() {
         return mPicture;
     }
 
-    /**
-     * Sets the raw picture object.
-     *
-     * In VLC for Android, use {@link MediaDatabase#setPicture(MediaWrapper, Bitmap)} instead.
-     *
-     * @param p
-     */
     public void setPicture(Bitmap p) {
         mPicture = p;
     }

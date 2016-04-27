@@ -46,37 +46,36 @@ public class Utils {
             return true;
     }
 
-    public static String getMediaArtist(Context ctx, MediaWrapper media) {
+    public static String getMediaArtist(MediaWrapper media) {
         final String artist = media.getArtist();
         return artist != null ? artist : "Unknown Artist";
     }
 
-    public static String getMediaReferenceArtist(Context ctx, MediaWrapper media) {
+    public static String getMediaReferenceArtist(MediaWrapper media) {
         final String artist = media.getReferenceArtist();
         return artist != null ? artist : "Unknown Artist";
     }
 
-    public static String getMediaAlbumArtist(Context ctx, MediaWrapper media) {
+    public static String getMediaAlbumArtist(MediaWrapper media) {
         final String albumArtist = media.getAlbumArtist();
         return albumArtist != null ? albumArtist : "Unknown Artist";
     }
 
-    public static String getMediaAlbum(Context ctx, MediaWrapper media) {
+    public static String getMediaAlbum(MediaWrapper media) {
         final String album = media.getAlbum();
         return album != null ? album : "Unknown Album";
-
     }
 
-    public static String getMediaGenre(Context ctx, MediaWrapper media) {
+    public static String getMediaGenre(MediaWrapper media) {
         final String genre = media.getGenre();
         return genre != null ? genre : "Unknown Genre";
     }
 
-    public static String getMediaSubtitle(Context ctx, MediaWrapper media) {
+    public static String getMediaSubtitle(MediaWrapper media) {
         if (media.getType() == MediaWrapper.TYPE_AUDIO)
             return media.getNowPlaying() != null
                     ? media.getNowPlaying()
-                    : getMediaArtist(ctx, media) + " - " + getMediaAlbum(ctx, media);
+                    : getMediaArtist(media) + " - " + getMediaAlbum(media);
         else
             return "";
     }

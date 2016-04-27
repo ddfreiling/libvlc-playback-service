@@ -51,11 +51,14 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.support.v7.app.NotificationCompat;
-import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
+
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.animation.GlideAnimation;
+import com.bumptech.glide.request.target.SimpleTarget;
 
 import org.videolan.libvlc.IVLCVout;
 import org.videolan.libvlc.LibVLC;
@@ -69,7 +72,6 @@ import java.lang.ref.WeakReference;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -80,7 +82,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import dk.nota.lyt.demo.R;
 import dk.nota.lyt.media.MediaWrapper;
 import dk.nota.lyt.media.MediaWrapperList;
-import dk.nota.lyt.utils.AlbumArtCache;
 
 public class PlaybackService extends Service {
 
@@ -135,7 +136,6 @@ public class PlaybackService extends Service {
     // Playback management
     MediaSessionCompat mMediaSession;
     protected MediaSessionCallback mSessionCallback;
-    private MediaNotificationManager mMediaNotificationManager;
     private static final long PLAYBACK_ACTIONS = PlaybackStateCompat.ACTION_PAUSE
             | PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_STOP
             | PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS;
@@ -192,7 +192,7 @@ public class PlaybackService extends Service {
                 RemoteControlEventReceiver.class.getName());
 
         // Make sure the audio player will acquire a wake-lock while playing. If we don't do
-        // that, the CPU might go to sleep while the song is playing, causing playback to stop.
+        // that, the CPU might go to sleep while the song is playing, causing playback to stopService.
         PowerManager pm = (PowerManager) this.getApplicationContext().getSystemService(Context.POWER_SERVICE);
         mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
 
@@ -207,12 +207,6 @@ public class PlaybackService extends Service {
         filter.addAction(Intent.ACTION_HEADSET_PLUG);
         filter.addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
         registerReceiver(mReceiver, filter);
-
-        try {
-            mMediaNotificationManager = new MediaNotificationManager(this);
-        } catch (RemoteException e) {
-            throw new IllegalStateException("Could not create a MediaNotificationManager", e);
-        }
     }
 
     @Override
@@ -236,8 +230,7 @@ public class PlaybackService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        mMediaNotificationManager.stopNotification();
-        stop();
+        stopService();
         if (mWakeLock.isHeld()) {
             mWakeLock.release();
         }
@@ -384,7 +377,7 @@ public class PlaybackService extends Service {
             } else if (action.equalsIgnoreCase(ACTION_REMOTE_BACKWARD)) {
                 previous();
             } else if (action.equalsIgnoreCase(ACTION_REMOTE_STOP)) {
-                stop();
+                stopService();
             } else if (action.equalsIgnoreCase(ACTION_REMOTE_FORWARD)) {
                 next();
             } else if (mDetectHeadset) {
@@ -459,22 +452,6 @@ public class PlaybackService extends Service {
                     executeUpdateProgress();
 
                     final MediaWrapper mw = mMediaList.getMedia(mCurrentIndex);
-                    if (mw != null) {
-//                        long length = mMediaPlayer.getLength();
-//                        MediaDatabase dbManager = MediaDatabase.getInstance();
-//                        MediaWrapper m = dbManager.getMedia(mw.getUri());
-//                        /**
-//                         * 1) There is a media to update
-//                         * 2) It has a length of 0
-//                         * (dynamic track loading - most notably the OGG container)
-//                         * 3) We were able to get a length even after parsing
-//                         * (don't want to replace a 0 with a 0)
-//                         */
-//                        if (m != null && m.getLength() == 0 && length > 0) {
-//                            dbManager.updateMedia(mw.getUri(),
-//                                    MediaDatabase.INDEX_MEDIA_LENGTH, length);
-//                        }
-                    }
                     changeAudioFocus(true);
                     if (!mWakeLock.isHeld())
                         mWakeLock.acquire();
@@ -522,6 +499,7 @@ public class PlaybackService extends Service {
                 case MediaPlayer.Event.Vout:
                     break;
                 case MediaPlayer.Event.ESAdded:
+                    updateMetadata();
                     break;
                 case MediaPlayer.Event.ESDeleted:
                     break;
@@ -561,7 +539,7 @@ public class PlaybackService extends Service {
                 else if (mCurrentIndex != -1) {
                     playIndex(mCurrentIndex, 0);
                 } else
-                    stop();
+                    stopService();
             }
 
             if(mCurrentIndex > index && !mExpanding.get())
@@ -594,10 +572,6 @@ public class PlaybackService extends Service {
     };
 
     private void executeUpdate() {
-        executeUpdate(true);
-    }
-
-    private void executeUpdate(Boolean updateWidget) {
         for (Callback callback : mCallbacks) {
             callback.update();
         }
@@ -658,105 +632,95 @@ public class PlaybackService extends Service {
         }
     }
 
-    private static final int NOTIFICATION_REQUEST_CODE = 123;
-    private static final int SERVICE_NOTIFICATION_ID = 99;
-
-    private static Bitmap mDefaultAlbumCover = null;
+    private static final int REQ_CODE = 123;
+    private static final int NOTIFICATION_ID = 99;
 
     private void showNotification() {
-        mMediaNotificationManager.startNotification();
-//        if (mMediaPlayer.getVLCVout().areViewsAttached()) {
-//            hideNotification(false);
-//            return;
-//        }
-//        try {
-//            boolean coverOnLockscreen = mSettings.getBoolean("lockscreen_cover", true);
-//            MediaMetadataCompat metaData = mMediaSession.getController().getMetadata();
-//            String title = metaData.getString(MediaMetadataCompat.METADATA_KEY_TITLE);
-//            String artist = metaData.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST);
-//            String album = metaData.getString(MediaMetadataCompat.METADATA_KEY_ALBUM);
-////            Bitmap cover = coverOnLockscreen ?
-////                    metaData.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART) :
-////                    AudioUtil.getCover(this, getCurrentMedia(), 512);
-////            if (cover == null)
-////                cover = BitmapFactory.decodeResource(VLCApplication.getAppContext().getResources(), R.drawable.icon);
-//            Notification notification;
-//
-////            if (mDefaultAlbumCover == null) {
-////                mDefaultAlbumCover = BitmapFactory.decodeResource(
-////                        getApplicationContext().getResources(), R.drawable.ic_default_album_art);
-////            }
-//
-//            //Watch notification dismissed
-//            PendingIntent piStop = PendingIntent.getBroadcast(this, 0,
-//                    new Intent(ACTION_REMOTE_STOP), PendingIntent.FLAG_UPDATE_CURRENT);
-//
-//            // add notification to status bar
-//            NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
-//            builder.setSmallIcon(R.drawable.ic_default_album_art)
-//                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-//                    .setContentTitle(title)
-//                    .setContentText(artist + " - " + album)
-////                    .setLargeIcon(mDefaultAlbumCover)
-//                    .setTicker(title + " - " + artist)
-//                    .setAutoCancel(!mMediaPlayer.isPlaying())
-//                    .setOngoing(mMediaPlayer.isPlaying())
-//                    .setDeleteIntent(piStop);
-//
-//            /* Resume AudioPlayerActivity */
-//            final Intent notificationIntent = new Intent(this, mNotificationActivity.getClass());
-//            notificationIntent.setAction(mNotificationAction);
-//            notificationIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-//            PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-//
-//            builder.setContentIntent(pendingIntent);
-//
-//            PendingIntent piBackward = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_REMOTE_BACKWARD), PendingIntent.FLAG_UPDATE_CURRENT);
-//            PendingIntent piPlay = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_REMOTE_PLAYPAUSE), PendingIntent.FLAG_UPDATE_CURRENT);
-//            PendingIntent piForward = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_REMOTE_FORWARD), PendingIntent.FLAG_UPDATE_CURRENT);
-//
-//            builder.addAction(R.drawable.ic_skip_previous_white_24dp, getString(R.string.previous), piBackward);
-//            builder.addAction(R.drawable.ic_skip_next_white_24dp, getString(R.string.next), piForward);
-//            if (mMediaPlayer.isPlaying())
-//                builder.addAction(R.drawable.uamp_ic_pause_white_24dp, getString(R.string.pause), piPlay);
-//            else
-//                builder.addAction(R.drawable.uamp_ic_play_arrow_white_24dp, getString(R.string.play), piPlay);
-//
-//            builder.setStyle(new NotificationCompat.MediaStyle()
-//                    .setMediaSession(mMediaSession.getSessionToken())
-//                    .setShowActionsInCompactView(new int[] {0,1,2})
-//                    .setShowCancelButton(true)
-//                    .setCancelButtonIntent(piStop)
-//            );
-//
-//            notification = builder.build();
-//
-//            // Ensure service is running
-//            startService(new Intent(this, PlaybackService.class));
-//            if (mMediaPlayer.isPlaying())
-//                startForeground(3, notification);
-//            else {
-//                stopForeground(false);
-//                NotificationManagerCompat.from(this).notify(3, notification);
-//            }
-//        }
-//        catch (NoSuchMethodError e){
-//            // Compat library is wrong on 3.2
-//            // http://code.google.com/p/android/issues/detail?id=36359
-//            // http://code.google.com/p/android/issues/detail?id=36502
-//        }
+        PendingIntent piStop = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_STOP), PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent piBackward = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_BACKWARD), PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent piPlay = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_PLAYPAUSE), PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent piForward = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_FORWARD), PendingIntent.FLAG_UPDATE_CURRENT);
+
+        NotificationCompat.Builder bob = new NotificationCompat.Builder(this);
+        bob.addAction(R.drawable.ic_skip_previous_white_24dp, "Previous", piBackward);
+        if (mMediaPlayer.isPlaying()) {
+            bob.addAction(R.drawable.ic_pause_white_24dp, "Pause", piPlay);
+        } else {
+            bob.addAction(R.drawable.ic_play_arrow_white_24dp, "Play", piPlay);
+        }
+        bob.addAction(R.drawable.ic_skip_next_white_24dp, "Next", piForward);
+
+        boolean isPlaying = isPlaying();
+
+        long playbackPosition = mMediaPlayer.getTime();
+        MediaWrapper currentMedia = getCurrentMedia();
+
+        Log.d(TAG, "Playback position: "+ playbackPosition);
+
+        bob.setStyle(new NotificationCompat.MediaStyle()
+                .setMediaSession(mMediaSession.getSessionToken())
+                .setShowActionsInCompactView(0)
+                .setShowCancelButton(true)
+                .setCancelButtonIntent(piStop))
+            .setSmallIcon(R.drawable.ic_notification)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentTitle(currentMedia.getTitle())
+            .setContentText(currentMedia.getArtist() + " - " + currentMedia.getAlbum())
+            .setTicker("Now playing "+ currentMedia.getTitle()) //TODO: used by accessibility services!
+            .setShowWhen(false)
+            .setDeleteIntent(piStop)
+            .setLargeIcon(getDefaultArtwork());
+
+        if (mNotificationActivity != null) {
+            Intent onClickIntent = new Intent(this, mNotificationActivity.getClass());
+            onClickIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            onClickIntent.setAction(mNotificationAction);
+            onClickIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+            PendingIntent piOnClick = PendingIntent.getActivity(this, REQ_CODE, onClickIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+            bob.setContentIntent(piOnClick);
+        }
+
+        if (currentMedia.isPictureParsed()) {
+            bob.setLargeIcon(currentMedia.getPicture());
+        } else if (currentMedia.getArtworkURL() != null) {
+            loadArtworkFromUrlAsync(currentMedia.getArtworkURL(), bob);
+        }
+
+        Notification notification = bob.build();
+        if (isPlaying) {
+            startForeground(NOTIFICATION_ID, notification);
+        } else {
+            stopForeground(false);
+            NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification);
+        }
     }
 
-    private void fetchBitmapFromURLAsync(final String bitmapUrl,
+    private Bitmap mDefaultArtworkBitmap;
+
+    private Bitmap getDefaultArtwork() {
+        if (mDefaultArtworkBitmap == null) {
+            mDefaultArtworkBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.default_album_artwork);
+        }
+        return mDefaultArtworkBitmap;
+    }
+
+    private void loadArtworkFromUrlAsync(final String artworkUrl,
                                          final NotificationCompat.Builder builder) {
-        AlbumArtCache.getInstance().fetch(bitmapUrl, new AlbumArtCache.FetchListener() {
-            @Override
-            public void onFetched(String artUrl, Bitmap bitmap, Bitmap icon) {
-                Log.d(TAG, "fetchBitmapFromURLAsync: set bitmap to " + artUrl);
-                builder.setLargeIcon(bitmap);
-                NotificationManagerCompat.from(PlaybackService.this).notify(3, builder.build());
-            }
-        });
+        Glide.with(getApplicationContext())
+            .load(artworkUrl)
+            .asBitmap()
+            .fitCenter()
+            .placeholder(R.drawable.default_album_artwork)
+            .into(new SimpleTarget<Bitmap>() {
+                @Override
+                public void onResourceReady(Bitmap resource, GlideAnimation<? super Bitmap> glideAnimation) {
+                    builder.setLargeIcon(resource);
+                    NotificationManagerCompat.from(PlaybackService.this)
+                            .notify(NOTIFICATION_ID, builder.build());
+                    getCurrentMedia().setPicture(resource);
+                    getCurrentMedia().setPictureParsed(true);
+                }
+            });
     }
 
     private void hideNotification() {
@@ -766,14 +730,13 @@ public class PlaybackService extends Service {
     /**
      * Hides the VLC notification and stops the service.
      *
-     * @param stopPlayback True to also stop playback at the same time. Set to false to preserve playback (e.g. for vout events)
+     * @param stopPlayback True to also stopService playback at the same time. Set to false to preserve playback (e.g. for vout events)
      */
     private void hideNotification(boolean stopPlayback) {
-        mMediaNotificationManager.stopNotification();
-//        stopForeground(true);
-//        NotificationManagerCompat.from(this).cancel(3);
-//        if(stopPlayback)
-//            stopSelf();
+        stopForeground(true);
+        NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID);
+        if(stopPlayback)
+            stopSelf();
     }
 
     /**
@@ -783,11 +746,8 @@ public class PlaybackService extends Service {
      */
     public <T extends Activity> void setNotificationActivity(T notificationActivity, String action)
     {
-        mNotificationActivity = notificationActivity; //TODO: needed in service?
+        mNotificationActivity = notificationActivity;
         mNotificationAction = action;
-        if (mMediaNotificationManager != null) {
-            mMediaNotificationManager.setOnClickActivity(notificationActivity, action);
-        }
     }
 
     @MainThread
@@ -795,7 +755,7 @@ public class PlaybackService extends Service {
         if (mPausable) {
             savePosition();
             mHandler.removeMessages(SHOW_PROGRESS);
-            // hideNotification(); <-- see event handler
+            // hideNotification(); // <-- see event handler
             mMediaPlayer.pause();
             broadcastMetadata();
         }
@@ -841,7 +801,8 @@ public class PlaybackService extends Service {
     }
 
     @MainThread
-    public void stop() {
+    public void stopService() {
+        stopForeground(true);
         stopPlayback();
         stopSelf();
     }
@@ -874,7 +835,7 @@ public class PlaybackService extends Service {
                     if(mPrevious.size() > 0)
                         mPrevIndex = mPrevious.peek();
                     // If we've played all songs already in shuffle, then either
-                    // reshuffle or stop (depending on RepeatType).
+                    // reshuffle or stopService (depending on RepeatType).
                     if(mPrevious.size() + 1 == size) {
                         if(mRepeating == REPEAT_NONE) {
                             mNextIndex = -1;
@@ -913,7 +874,7 @@ public class PlaybackService extends Service {
     private void initMediaSession() {
         ComponentName mediaButtonEventReceiver = new ComponentName(this, RemoteControlEventReceiver.class);
         mSessionCallback = new MediaSessionCallback();
-        mMediaSession = new MediaSessionCompat(this, PlaybackService.class.getName(), mediaButtonEventReceiver, null);
+        mMediaSession = new MediaSessionCompat(this, "Lyt", mediaButtonEventReceiver, null);
         mMediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS
                 | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
         mMediaSession.setCallback(mSessionCallback);
@@ -922,8 +883,7 @@ public class PlaybackService extends Service {
         } catch (NullPointerException e) {
             // Some versions of KitKat do not support AudioManager.registerMediaButtonIntent
             // with a PendingIntent. They will throw a NullPointerException, in which case
-            // they should be able to activate a MediaSessionCompat with only transport
-            // controls.
+            // they should be able to activate a MediaSessionCompat with only transport controls.
             mMediaSession.setActive(false);
             mMediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
             mMediaSession.setActive(true);
@@ -948,7 +908,7 @@ public class PlaybackService extends Service {
 
         @Override
         public void onStop() {
-            stop();
+            stopService();
         }
 
         @Override
@@ -986,21 +946,15 @@ public class PlaybackService extends Service {
         String title = media.getNowPlaying();
         if (title == null)
             title = media.getTitle();
-        boolean coverOnLockscreen = mSettings.getBoolean("lockscreen_cover", true);
         MediaMetadataCompat.Builder bob = new MediaMetadataCompat.Builder();
         bob.putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
-                .putString(MediaMetadataCompat.METADATA_KEY_GENRE, Utils.getMediaGenre(this, media))
+                .putString(MediaMetadataCompat.METADATA_KEY_GENRE, Utils.getMediaGenre(media))
                 .putLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER, media.getTrackNumber())
-                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, Utils.getMediaArtist(this, media))
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, Utils.getMediaReferenceArtist(this, media))
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, Utils.getMediaAlbum(this, media))
+                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, Utils.getMediaArtist(media))
+                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, Utils.getMediaReferenceArtist(media))
+                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, Utils.getMediaAlbum(media))
+                .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, media.getArtworkURL())
                 .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, media.getLength());
-        //TODO: fix cover
-//        if (coverOnLockscreen) {
-//            Bitmap cover = AudioUtil.getCover(this, media, 512);
-//            if (cover != null && cover.getConfig() != null) //In case of format not supported
-//                bob.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, cover.copy(cover.getConfig(), false));
-//        }
         mMediaSession.setMetadata(bob.build());
     }
 
@@ -1011,13 +965,13 @@ public class PlaybackService extends Service {
         bob.setActions(PLAYBACK_ACTIONS);
         switch (state) {
             case MediaPlayer.Event.Playing:
-                bob.setState(PlaybackStateCompat.STATE_PLAYING, -1, 1);
+                bob.setState(PlaybackStateCompat.STATE_PLAYING, getCurrentMediaPosition(), getRate());
                 break;
             case MediaPlayer.Event.Stopped:
-                bob.setState(PlaybackStateCompat.STATE_STOPPED, -1, 0);
+                bob.setState(PlaybackStateCompat.STATE_STOPPED, getCurrentMediaPosition(), getRate());
                 break;
             default:
-                bob.setState(PlaybackStateCompat.STATE_PAUSED, -1, 0);
+                bob.setState(PlaybackStateCompat.STATE_PAUSED, getCurrentMediaPosition(), getRate());
         }
         PlaybackStateCompat pbState = bob.build();
         mMediaSession.setPlaybackState(pbState);
@@ -1053,7 +1007,7 @@ public class PlaybackService extends Service {
             if (mCurrentIndex < 0)
                 saveCurrentMedia();
             Log.w(TAG, "Warning: invalid next index, aborted !");
-            stop();
+            stopService();
             return;
         }
         playIndex(mCurrentIndex, 0);
@@ -1070,7 +1024,7 @@ public class PlaybackService extends Service {
                 mPrevious.pop();
             if (size == 0 || mPrevIndex < 0 || mCurrentIndex >= size) {
                 Log.w(TAG, "Warning: invalid previous index, aborted !");
-                stop();
+                stopService();
                 return;
             }
         } else
@@ -1259,7 +1213,7 @@ public class PlaybackService extends Service {
     @MainThread
     public String getAlbum() {
         if (hasCurrentMedia())
-            return Utils.getMediaAlbum(PlaybackService.this, getCurrentMedia());
+            return Utils.getMediaAlbum(getCurrentMedia());
         else
             return null;
     }
@@ -1270,7 +1224,7 @@ public class PlaybackService extends Service {
             final MediaWrapper media = getCurrentMedia();
             return media.getNowPlaying() != null ?
                     media.getTitle()
-                    : Utils.getMediaArtist(PlaybackService.this, media);
+                    : Utils.getMediaArtist(media);
         } else
             return null;
     }
@@ -1278,7 +1232,7 @@ public class PlaybackService extends Service {
     @MainThread
     public String getArtistPrev() {
         if (mPrevIndex != -1)
-            return Utils.getMediaArtist(PlaybackService.this, mMediaList.getMedia(mPrevIndex));
+            return Utils.getMediaArtist(mMediaList.getMedia(mPrevIndex));
         else
             return null;
     }
@@ -1286,7 +1240,7 @@ public class PlaybackService extends Service {
     @MainThread
     public String getArtistNext() {
         if (mNextIndex != -1)
-            return Utils.getMediaArtist(PlaybackService.this, mMediaList.getMedia(mNextIndex));
+            return Utils.getMediaArtist(mMediaList.getMedia(mNextIndex));
         else
             return null;
     }
@@ -1312,30 +1266,6 @@ public class PlaybackService extends Service {
         if (mNextIndex != -1)
             return mMediaList.getMedia(mNextIndex).getTitle();
         else
-            return null;
-    }
-
-    //**@MainThread
-    public Bitmap getCover() {
-//        if (hasCurrentMedia()) {
-//            return AudioUtil.getCover(PlaybackService.this, getCurrentMedia(), 512);
-//        }
-        return null;
-    }
-
-    @MainThread
-    public Bitmap getCoverPrev() {
-//        if (mPrevIndex != -1)
-//            return AudioUtil.getCover(PlaybackService.this, mMediaList.getMedia(mPrevIndex), 64);
-//        else
-            return null;
-    }
-
-    @MainThread
-    public Bitmap getCoverNext() {
-//        if (mNextIndex != -1)
-//            return AudioUtil.getCover(PlaybackService.this, mMediaList.getMedia(mNextIndex), 64);
-//        else
             return null;
     }
 
@@ -1792,7 +1722,7 @@ public class PlaybackService extends Service {
     }
 
     public void restartMediaPlayer() {
-        stop();
+        stopService();
         mMediaPlayer.release();
         mMediaPlayer = newMediaPlayer();
         /* TODO RESUME */
