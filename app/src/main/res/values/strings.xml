@@ -1,7 +1,7 @@
 <resources>
-    <string name="app_name">My Application</string>
+    <string name="app_name">VLC PlaybackService Demo</string>
     <string name="play">Play</string>
     <string name="pause">Pause</string>
-    <string name="next">Next</string>
-    <string name="previous">Previous</string>
+    <string name="next">Næste</string>
+    <string name="previous">Forrige</string>
 </resources>

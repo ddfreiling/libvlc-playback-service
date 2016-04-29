@@ -8,20 +8,18 @@ import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.SeekBar;
 import android.widget.TextView;
-
-import org.videolan.libvlc.util.AndroidUtil;
-
 import java.util.ArrayList;
 
-import dk.nota.lyt.PlaybackService;
-import dk.nota.lyt.ServiceHelper;
-import dk.nota.lyt.media.MediaWrapper;
+import dk.nota.lyt.vlc.PlaybackService;
+import dk.nota.lyt.vlc.PlaybackServiceHelper;
+import dk.nota.lyt.vlc.Utils;
+import dk.nota.lyt.vlc.media.MediaWrapper;
 
-public class MainActivity extends AppCompatActivity implements PlaybackService.Client.Callback {
+public class MainActivity extends AppCompatActivity implements PlaybackService.Client.ConnectionCallback {
 
-    final private ServiceHelper mHelper = new ServiceHelper(this, this);
+    final private PlaybackServiceHelper mHelper = new PlaybackServiceHelper(this, this);
     private static final String TAG = MainActivity.class.getCanonicalName();
-    public static final String ACTION_SHOW_PLAYER = "ACTION_SHOW_PLAYER";
+    public static final String OPENED_FROM_NOTIFICATION = "OPENED_FROM_NOTIFICATION";
 
     private PlaybackService mService;
 
@@ -37,7 +35,7 @@ public class MainActivity extends AppCompatActivity implements PlaybackService.C
         mHelper.onStop();
     }
 
-    public ServiceHelper getHelper() {
+    public PlaybackServiceHelper getHelper() {
         return mHelper;
     }
 
@@ -47,15 +45,13 @@ public class MainActivity extends AppCompatActivity implements PlaybackService.C
         if (mService != null) {
             Log.i(TAG, "------ Adding test Media! --------");
 
-            mService.setNotificationActivity(MainActivity.this, "OPENED_FROM_NOTIFICATION");
+            mService.setNotificationActivity(MainActivity.this, OPENED_FROM_NOTIFICATION);
             ArrayList<MediaWrapper> playlist = new ArrayList<>();
             MediaWrapper media1 = GetMedia("http://www.noiseaddicts.com/samples_1w72b820/4357.mp3",
                     "Skyggeforbandelsen", "Helene Tegtmeier", "Del 1 af 3",
-                    "Tilo kan se ting, som andre ikke kan. I et russisk cirkus ser han en ung akrobat, som er blevet til et spøgelse",
                     "http://bookcover.nota.dk/714070_w140_h200.jpg");
             MediaWrapper media2 = GetMedia("http://www.noiseaddicts.com/samples_1w72b820/202.mp3",
-                    "Gangsta rap", "Benjamin Zephaniah", "",
-                    "Ray og vennerne tænker kun på musik. De drømmer om at indspille den vildeste hip hop-cd. På vej mod succes opdager de, at der også er en bagside med vold og bandeopgør",
+                    "Gangsta rap", "Benjamin Zephaniah", "ALBUM",
                     "http://bookcover.nota.dk/709152_w140_h200.jpg");
             playlist.add(media1);
             playlist.add(media2);
@@ -65,12 +61,11 @@ public class MainActivity extends AppCompatActivity implements PlaybackService.C
         }
     }
 
-    private MediaWrapper GetMedia(String mediaUrl, String displayTitle, String artist, String album, String description, String artworkUrl) {
-        MediaWrapper media = new MediaWrapper(AndroidUtil.LocationToUri(mediaUrl));
+    private MediaWrapper GetMedia(String mediaUrl, String displayTitle, String artist, String album, String artworkUrl) {
+        MediaWrapper media = new MediaWrapper(Utils.LocationToUri(mediaUrl));
         media.setDisplayTitle(displayTitle);
         media.setArtist(artist);
         media.setAlbum(album);
-        media.setDescription(description);
         media.setArtworkURL(artworkUrl);
         return media;
     }
