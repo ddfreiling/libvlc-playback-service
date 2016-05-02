@@ -669,8 +669,7 @@ public class PlaybackService extends Service {
             .setContentText(currentMedia.getArtist() + " - " + currentMedia.getAlbum()) //TODO: what's a reasonably common contentText?
             .setTicker(currentMedia.getTitle()) //TODO: used by accessibility services!
             .setShowWhen(false)
-            .setDeleteIntent(piStop)
-            .setLargeIcon(getDefaultArtwork());
+            .setDeleteIntent(piStop);
 
         if (mNotificationActivity != null) {
             Intent onClickIntent = new Intent(this, mNotificationActivity.getClass());
@@ -685,6 +684,8 @@ public class PlaybackService extends Service {
             bob.setLargeIcon(currentMedia.getPicture());
         } else if (currentMedia.getArtworkURL() != null) {
             loadArtworkFromUrlAsync(currentMedia.getArtworkURL(), bob);
+        } else {
+            bob.setLargeIcon(getDefaultArtwork());
         }
 
         Notification notification = bob.build();

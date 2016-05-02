@@ -52,7 +52,7 @@ public class MainActivity extends AppCompatActivity implements PlaybackService.C
                     "http://bookcover.nota.dk/714070_w140_h200.jpg");
             MediaWrapper media2 = GetMedia("http://www.noiseaddicts.com/samples_1w72b820/202.mp3",
                     "Gangsta rap", "Benjamin Zephaniah", "ALBUM",
-                    "http://bookcover.nota.dk/709152_w140_h200.jpg");
+                    null);
             playlist.add(media1);
             playlist.add(media2);
 //            playlist.add(new MediaWrapper(AndroidUtil.LocationToUri("http://www.noiseaddicts.com/samples_1w72b820/3816.mp3")));
