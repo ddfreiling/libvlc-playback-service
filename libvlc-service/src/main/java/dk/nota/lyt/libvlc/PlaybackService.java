@@ -87,7 +87,7 @@ import dk.nota.lyt.libvlc.media.MediaPlayerEvent;
 public class PlaybackService extends Service {
 
     private static final String TAG = PlaybackService.class.getCanonicalName();
-
+    
     private static final int SHOW_PROGRESS = 0;
     private static final int SHOW_TOAST = 1;
     public static final String ACTION_REMOTE_GENERIC = PlaybackService.class.getPackage().getName() + ".remote.";
@@ -1012,7 +1012,7 @@ public class PlaybackService extends Service {
     public void previous() {
         int size = mMediaList.size();
         if (hasPrevious() && mCurrentIndex > 0 &&
-                (!mMediaPlayer.isSeekable() || mMediaPlayer.getTime() < 2000l)) {
+                (!mMediaPlayer.isSeekable() || mMediaPlayer.getTime() < 5000l)) {
             mCurrentIndex = mPrevIndex;
             if (mPrevious.size() > 0)
                 mPrevious.pop();
