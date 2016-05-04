@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-package dk.nota.lyt.vlc;
+package dk.nota.lyt.libvlc;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
@@ -30,7 +30,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -69,7 +68,6 @@ import org.videolan.libvlc.MediaPlayer;
 import org.videolan.libvlc.util.AndroidUtil;
 
 import java.io.File;
-import java.lang.annotation.Target;
 import java.lang.ref.WeakReference;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -81,8 +79,10 @@ import java.util.Random;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import dk.nota.lyt.vlc.media.MediaWrapper;
-import dk.nota.lyt.vlc.media.MediaWrapperList;
+import dk.nota.lyt.libvlc.media.MediaWrapper;
+import dk.nota.lyt.libvlc.media.MediaWrapperList;
+import dk.nota.lyt.libvlc.media.MediaEvent;
+import dk.nota.lyt.libvlc.media.MediaPlayerEvent;
 
 public class PlaybackService extends Service {
 
@@ -97,13 +97,6 @@ public class PlaybackService extends Service {
     public static final String ACTION_REMOTE_PAUSE = ACTION_REMOTE_GENERIC+"Pause";
     public static final String ACTION_REMOTE_STOP = ACTION_REMOTE_GENERIC+"Stop";
     public static final String ACTION_REMOTE_FORWARD = ACTION_REMOTE_GENERIC+"Forward";
-
-    public interface Callback {
-        void update();
-        void updateProgress();
-        void onMediaEvent(Media.Event event);
-        void onMediaPlayerEvent(MediaPlayer.Event event);
-    }
 
     /* Binder for Service RPC */
     private class LocalBinder extends Binder {
@@ -123,7 +116,7 @@ public class PlaybackService extends Service {
     private Activity mNotificationActivity;
     private String mNotificationAction;
 
-    final private ArrayList<Callback> mCallbacks = new ArrayList<>();
+    final private ArrayList<PlaybackEventHandler> mPlaybackEventHandlers = new ArrayList<>();
     private boolean mDetectHeadset = true;
     private PowerManager.WakeLock mWakeLock;
     private final AtomicBoolean mExpanding = new AtomicBoolean(false);
@@ -162,13 +155,12 @@ public class PlaybackService extends Service {
     private LibVLC LibVLC() {
         ArrayList<String> defaultOptions = new ArrayList<String>();
         defaultOptions.add("--http-reconnect");
-        defaultOptions.add("--network-caching=10000"); //TODO: Configurable buffer size
+        defaultOptions.add("--network-caching=5000"); //TODO: Configurable buffer size
         return Utils.GetLibVLC(this.getApplicationContext(), defaultOptions);
     }
 
     private MediaPlayer newMediaPlayer() {
         final MediaPlayer mp = new MediaPlayer(LibVLC());
-
         return mp;
     }
 
@@ -417,8 +409,8 @@ public class PlaybackService extends Service {
 
             }
             if (update) {
-                for (Callback callback : mCallbacks)
-                    callback.onMediaEvent(event);
+                for (PlaybackEventHandler handler : mPlaybackEventHandlers)
+                    handler.onMediaEvent(new MediaEvent(event));
                 if (mParsed)
                     showNotification();
             }
@@ -511,8 +503,8 @@ public class PlaybackService extends Service {
                     mSeekable = event.getSeekable();
                     break;
             }
-            for (Callback callback : mCallbacks)
-                callback.onMediaPlayerEvent(event);
+            for (PlaybackEventHandler handler : mPlaybackEventHandlers)
+                handler.onMediaPlayerEvent(new MediaPlayerEvent(event));
         }
     };
 
@@ -573,15 +565,15 @@ public class PlaybackService extends Service {
     };
 
     private void executeUpdate() {
-        for (Callback callback : mCallbacks) {
-            callback.update();
+        for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
+            handler.update();
         }
         updateMetadata();
     }
 
     private void executeUpdateProgress() {
-        for (Callback callback : mCallbacks) {
-            callback.updateProgress();
+        for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
+            handler.updateProgress();
         }
     }
 
@@ -618,7 +610,7 @@ public class PlaybackService extends Service {
 
             switch (msg.what) {
                 case SHOW_PROGRESS:
-                    if (service.mCallbacks.size() > 0) {
+                    if (service.mPlaybackEventHandlers.size() > 0) {
                         removeMessages(SHOW_PROGRESS);
                         service.executeUpdateProgress();
                         sendEmptyMessageDelayed(SHOW_PROGRESS, 1000);
@@ -1272,17 +1264,17 @@ public class PlaybackService extends Service {
     }
 
     @MainThread
-    public synchronized void addCallback(Callback cb) {
-        if (!mCallbacks.contains(cb)) {
-            mCallbacks.add(cb);
+    public synchronized void addCallback(PlaybackEventHandler handler) {
+        if (!mPlaybackEventHandlers.contains(handler)) {
+            mPlaybackEventHandlers.add(handler);
             if (hasCurrentMedia())
                 mHandler.sendEmptyMessage(SHOW_PROGRESS);
         }
     }
 
     @MainThread
-    public synchronized void removeCallback(Callback cb) {
-        mCallbacks.remove(cb);
+    public synchronized void removeCallback(PlaybackEventHandler handler) {
+        mPlaybackEventHandlers.remove(handler);
     }
 
     @MainThread
@@ -1729,79 +1721,6 @@ public class PlaybackService extends Service {
         mMediaPlayer = newMediaPlayer();
         /* TODO RESUME */
     }
-
-    public static class Client {
-        public static final String TAG = Client.class.getCanonicalName();
-
-        @MainThread
-        public interface ConnectionCallback {
-            void onConnected(PlaybackService service);
-            void onDisconnected();
-        }
-
-        private boolean mBound = false;
-        private final ConnectionCallback mConnectionCallback;
-        private final Context mContext;
-
-        private final ServiceConnection mServiceConnection = new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName name, IBinder iBinder) {
-                if (!mBound)
-                    return;
-
-                final PlaybackService service = PlaybackService.getService(iBinder);
-                if (service != null)
-                    mConnectionCallback.onConnected(service);
-            }
-
-            @Override
-            public void onServiceDisconnected(ComponentName name) {
-                mBound = false;
-                mConnectionCallback.onDisconnected();
-            }
-        };
-
-        private static Intent getServiceIntent(Context context) {
-            return new Intent(context, PlaybackService.class);
-        }
-
-        private static void startService(Context context) {
-            context.startService(getServiceIntent(context));
-        }
-
-        private static void stopService(Context context) {
-            context.stopService(getServiceIntent(context));
-        }
-
-        public Client(Context context, ConnectionCallback connectionCallback) {
-            if (context == null || connectionCallback == null)
-                throw new IllegalArgumentException("Context and connectionCallback can't be null");
-            mContext = context;
-            mConnectionCallback = connectionCallback;
-        }
-
-        @MainThread
-        public void connect() {
-            if (mBound)
-                throw new IllegalStateException("already connected");
-            startService(mContext);
-            mBound = mContext.bindService(getServiceIntent(mContext), mServiceConnection, BIND_AUTO_CREATE);
-        }
-
-        @MainThread
-        public void disconnect() {
-            if (mBound) {
-                mBound = false;
-                mContext.unbindService(mServiceConnection);
-            }
-        }
-
-        public static void restartService(Context context) {
-            stopService(context);
-            startService(context);
-        }
-    }
-
 
     public abstract class WeakHandler<T> extends Handler {
         private WeakReference<T> mOwner;

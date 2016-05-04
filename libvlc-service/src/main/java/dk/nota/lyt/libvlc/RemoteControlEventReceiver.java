@@ -1,4 +1,4 @@
-package dk.nota.lyt.vlc;
+package dk.nota.lyt.libvlc;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;

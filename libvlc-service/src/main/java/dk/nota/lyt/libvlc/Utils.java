@@ -1,4 +1,4 @@
-package dk.nota.lyt.vlc;
+package dk.nota.lyt.libvlc;
 
 import android.content.Context;
 import android.net.Uri;
@@ -10,7 +10,7 @@ import org.videolan.libvlc.util.VLCUtil;
 
 import java.util.ArrayList;
 
-import dk.nota.lyt.vlc.media.MediaWrapper;
+import dk.nota.lyt.libvlc.media.MediaWrapper;
 
 /**
  * Created by dfg on 18-04-2016.

@@ -1,10 +1,7 @@
-package dk.nota.lyt.vlc;
+package dk.nota.lyt.libvlc;
 
 import android.content.Context;
-import android.net.Uri;
 import android.support.annotation.MainThread;
-
-import org.videolan.libvlc.util.AndroidUtil;
 
 import java.util.ArrayList;
 
@@ -13,21 +10,21 @@ import java.util.ArrayList;
  */
 public class PlaybackServiceHelper {
 
-    private ArrayList<PlaybackService.Client.ConnectionCallback> callbacks = new ArrayList<>();
-    private PlaybackService.Client mClient;
+    private ArrayList<ConnectionCallback> callbacks = new ArrayList<>();
+    private PlaybackServiceClient mClient;
     protected PlaybackService mService;
 
     public PlaybackServiceHelper(Context context) {
-        mClient = new PlaybackService.Client(context, mClientCallback);
+        mClient = new PlaybackServiceClient(context, mClientCallback);
     }
 
-    public PlaybackServiceHelper(Context context, PlaybackService.Client.ConnectionCallback callback) {
+    public PlaybackServiceHelper(Context context, ConnectionCallback callback) {
         this(context);
         registerConnectionCallback(callback);
     }
 
     @MainThread
-    public void registerConnectionCallback(PlaybackService.Client.ConnectionCallback callback) {
+    public void registerConnectionCallback(ConnectionCallback callback) {
         if (callback == null)
             throw new IllegalArgumentException("callback must not be null");
         callbacks.add(callback);
@@ -37,7 +34,7 @@ public class PlaybackServiceHelper {
     }
 
     @MainThread
-    public void unregisterConnectionCallback(PlaybackService.Client.ConnectionCallback callback) {
+    public void unregisterConnectionCallback(ConnectionCallback callback) {
         if (mService != null)
             callback.onDisconnected();
         callbacks.remove(callback);
@@ -54,18 +51,18 @@ public class PlaybackServiceHelper {
         mClient.disconnect();
     }
 
-    private final PlaybackService.Client.ConnectionCallback mClientCallback = new PlaybackService.Client.ConnectionCallback() {
+    private final ConnectionCallback mClientCallback = new ConnectionCallback() {
         @Override
         public void onConnected(PlaybackService service) {
             mService = service;
-            for (PlaybackService.Client.ConnectionCallback callback : callbacks)
+            for (ConnectionCallback callback : callbacks)
                 callback.onConnected(mService);
         }
 
         @Override
         public void onDisconnected() {
             mService = null;
-            for (PlaybackService.Client.ConnectionCallback callback : callbacks)
+            for (ConnectionCallback callback : callbacks)
                 callback.onDisconnected();
         }
     };

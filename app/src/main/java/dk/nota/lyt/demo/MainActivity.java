@@ -10,12 +10,13 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import java.util.ArrayList;
 
-import dk.nota.lyt.vlc.PlaybackService;
-import dk.nota.lyt.vlc.PlaybackServiceHelper;
-import dk.nota.lyt.vlc.Utils;
-import dk.nota.lyt.vlc.media.MediaWrapper;
+import dk.nota.lyt.libvlc.ConnectionCallback;
+import dk.nota.lyt.libvlc.PlaybackService;
+import dk.nota.lyt.libvlc.PlaybackServiceHelper;
+import dk.nota.lyt.libvlc.Utils;
+import dk.nota.lyt.libvlc.media.MediaWrapper;
 
-public class MainActivity extends AppCompatActivity implements PlaybackService.Client.ConnectionCallback {
+public class MainActivity extends AppCompatActivity implements ConnectionCallback {
 
     final private PlaybackServiceHelper mHelper = new PlaybackServiceHelper(this, this);
     private static final String TAG = MainActivity.class.getCanonicalName();

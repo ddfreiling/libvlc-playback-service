@@ -43,10 +43,10 @@ android {
     }
 
     compileSdkVersion 23
-    buildToolsVersion "23.0.2"
+    buildToolsVersion "23.0.3"
 
     defaultConfig {
-        applicationId "dk.nota.lyt.vlc.demo"
+        applicationId "dk.nota.lyt.libvlc"
         minSdkVersion 19
         targetSdkVersion 23
         versionCode 1
@@ -61,7 +61,5 @@ android {
 }
 
 dependencies {
-    compile fileTree(include: ['*.jar'], dir: 'libs')
-    testCompile 'junit:junit:4.12'
-    compile project(':libvlcservice')
+    compile project(':libvlc-service')
 }
