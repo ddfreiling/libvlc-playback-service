@@ -87,7 +87,7 @@ import dk.nota.lyt.libvlc.media.MediaPlayerEvent;
 public class PlaybackService extends Service {
 
     private static final String TAG = PlaybackService.class.getCanonicalName();
-    
+
     private static final int SHOW_PROGRESS = 0;
     private static final int SHOW_TOAST = 1;
     public static final String ACTION_REMOTE_GENERIC = PlaybackService.class.getPackage().getName() + ".remote.";
@@ -652,7 +652,7 @@ public class PlaybackService extends Service {
 
         bob.setStyle(new NotificationCompat.MediaStyle()
                 .setMediaSession(mMediaSession.getSessionToken())
-                .setShowActionsInCompactView(0)
+                .setShowActionsInCompactView(1)
                 .setShowCancelButton(true)
                 .setCancelButtonIntent(piStop))
             .setSmallIcon(R.drawable.ic_notification)
@@ -1057,7 +1057,6 @@ public class PlaybackService extends Service {
         broadcast.putExtra("album", media.getAlbum());
         broadcast.putExtra("duration", media.getLength());
         broadcast.putExtra("playing", playing);
-
         sendBroadcast(broadcast);
     }
 
@@ -1354,7 +1353,7 @@ public class PlaybackService extends Service {
         if (mMediaList.size() > position && position >= 0) {
             mCurrentIndex = position;
         } else {
-            Log.w(TAG, "Warning: positon " + position + " out of bounds");
+            Log.w(TAG, "Warning: position " + position + " out of bounds");
             mCurrentIndex = 0;
         }
 
@@ -1416,13 +1415,6 @@ public class PlaybackService extends Service {
         mSavedTime = 0l;
 
         determinePrevAndNextIndices();
-//        if (mSettings.getBoolean(PreferencesFragment.PLAYBACK_HISTORY, true))
-//            VLCApplication.runBackground(new Runnable() {
-//                @Override
-//                public void run() {
-//                    MediaDatabase.getInstance().addHistoryItem(mw);
-//                }
-//            });
     }
 
     /**
