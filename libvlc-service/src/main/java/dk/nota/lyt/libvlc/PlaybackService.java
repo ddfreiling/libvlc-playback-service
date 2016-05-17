@@ -18,6 +18,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
+/**
+ * Heavily modified to fit our needs for the LYT project.
+ */
+
 package dk.nota.lyt.libvlc;
 
 import android.annotation.TargetApi;
@@ -153,9 +157,15 @@ public class PlaybackService extends Service {
     private ComponentName mRemoteControlClientReceiverComponent;
 
     private LibVLC LibVLC() {
+        Log.i(TAG, "=== Creating LibVLC with options! ===");
+        Log.i(TAG, "NetworkCache: "+ DefaultOptions.NetworkCaching);
+        Log.i(TAG, "FileCache: "+ DefaultOptions.FileCaching);
         ArrayList<String> defaultOptions = new ArrayList<String>();
-        defaultOptions.add("--http-reconnect");
-        defaultOptions.add("--network-caching=5000"); //TODO: Configurable buffer size
+        if (DefaultOptions.AutoReconnect) {
+            defaultOptions.add("--http-reconnect");
+        }
+        defaultOptions.add("--network-caching="+ DefaultOptions.NetworkCaching);
+        defaultOptions.add("--file-caching="+ DefaultOptions.FileCaching);
         return Utils.GetLibVLC(this.getApplicationContext(), defaultOptions);
     }
 

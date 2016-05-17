@@ -11,6 +11,7 @@ import android.widget.TextView;
 import java.util.ArrayList;
 
 import dk.nota.lyt.libvlc.ConnectionCallback;
+import dk.nota.lyt.libvlc.DefaultOptions;
 import dk.nota.lyt.libvlc.PlaybackService;
 import dk.nota.lyt.libvlc.PlaybackServiceHelper;
 import dk.nota.lyt.libvlc.Utils;
@@ -27,6 +28,9 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
     @Override
     protected void onStart() {
         super.onStart();
+
+        DefaultOptions.FileCaching = 5000;
+        DefaultOptions.NetworkCaching = 5000;
         mHelper.onStart();
     }
 
@@ -44,7 +48,7 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
     public void onConnected(PlaybackService service) {
         mService = service;
         if (mService != null) {
-            Log.i(TAG, "------ Adding test Media! --------");
+            Log.i(TAG, "------ CONNECTED TO SERVICE: Adding test media --------");
 
             mService.setNotificationActivity(MainActivity.this, OPENED_FROM_NOTIFICATION);
             ArrayList<MediaWrapper> playlist = new ArrayList<>();
