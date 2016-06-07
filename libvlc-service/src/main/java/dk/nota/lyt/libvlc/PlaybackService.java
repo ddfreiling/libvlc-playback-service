@@ -419,8 +419,12 @@ public class PlaybackService extends Service {
 
             }
             if (update) {
-                for (PlaybackEventHandler handler : mPlaybackEventHandlers)
-                    handler.onMediaEvent(new MediaEvent(event));
+                try {
+                    for (PlaybackEventHandler handler : mPlaybackEventHandlers)
+                        handler.onMediaEvent(new MediaEvent(event));
+                } catch(Exception ex) {
+                    Log.d(TAG, "Error notifying PlaybackEventHandlers.onMediaEvent: "+ ex.getMessage());
+                }
                 if (mParsed)
                     showNotification();
             }
@@ -513,8 +517,12 @@ public class PlaybackService extends Service {
                     mSeekable = event.getSeekable();
                     break;
             }
-            for (PlaybackEventHandler handler : mPlaybackEventHandlers)
-                handler.onMediaPlayerEvent(new MediaPlayerEvent(event));
+            try {
+                for (PlaybackEventHandler handler : mPlaybackEventHandlers)
+                    handler.onMediaPlayerEvent(new MediaPlayerEvent(event));
+            } catch(Exception ex) {
+                Log.d(TAG, "Error notifying PlaybackEventHandlers.onMediaPlayerEvent: "+ ex.getMessage());
+            }
         }
     };
 
@@ -575,15 +583,24 @@ public class PlaybackService extends Service {
     };
 
     private void executeUpdate() {
-        for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
-            handler.update();
+        try {
+            for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
+                handler.update();
+            }
+        } catch(Exception ex) {
+            Log.d(TAG, "Error notifying PlaybackEventHandlers.update: "+ ex.getMessage());
         }
+
         updateMetadata();
     }
 
     private void executeUpdateProgress() {
-        for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
-            handler.updateProgress();
+        try {
+            for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
+                handler.updateProgress();
+            }
+        } catch(Exception ex) {
+            Log.d(TAG, "Error notifying PlaybackEventHandlers.updateProgress: "+ ex.getMessage());
         }
     }
 
