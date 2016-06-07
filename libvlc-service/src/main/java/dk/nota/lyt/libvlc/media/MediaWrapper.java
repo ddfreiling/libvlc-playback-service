@@ -35,8 +35,6 @@ import org.videolan.libvlc.util.Extensions;
 
 import java.util.Locale;
 
-//import org.videolan.vlc.gui.helpers.BitmapUtil; TODO: Implement bitmap fetching/caching
-
 public class MediaWrapper implements Parcelable {
     public final static String TAG = MediaWrapper.class.getCanonicalName();
 

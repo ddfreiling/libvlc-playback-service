@@ -685,7 +685,7 @@ public class PlaybackService extends Service {
             .setSmallIcon(R.drawable.ic_notification)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentTitle(currentMedia.getTitle())
-            .setContentText(currentMedia.getArtist() + " - " + currentMedia.getAlbum()) //TODO: what's a reasonably common contentText?
+            .setContentText(currentMedia.getArtist() + " - " + currentMedia.getAlbum())
             .setTicker(currentMedia.getTitle()) //TODO: used by accessibility services!
             .setShowWhen(false)
             .setDeleteIntent(piStop);
@@ -823,6 +823,7 @@ public class PlaybackService extends Service {
 
     @MainThread
     public void stopService() {
+        removeAllCallbacks();
         stopForeground(true);
         stopPlayback();
         stopSelf();
@@ -1301,6 +1302,11 @@ public class PlaybackService extends Service {
     @MainThread
     public synchronized void removeCallback(PlaybackEventHandler handler) {
         mPlaybackEventHandlers.remove(handler);
+    }
+
+    @MainThread
+    public synchronized void removeAllCallbacks() {
+        mPlaybackEventHandlers.clear();
     }
 
     @MainThread
