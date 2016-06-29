@@ -784,7 +784,9 @@ public class PlaybackService extends Service {
 
     @MainThread
     public void play() {
-        if(hasCurrentMedia()) {
+        if (!hasCurrentMedia() && mMediaList.size() > 0) {
+            playIndex(0);
+        } else if (hasCurrentMedia()) {
             mMediaPlayer.play();
             mHandler.sendEmptyMessage(SHOW_PROGRESS);
             updateMetadata();
