@@ -62,7 +62,7 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
             playlist.add(media2);
 //            playlist.add(new MediaWrapper(AndroidUtil.LocationToUri("http://www.noiseaddicts.com/samples_1w72b820/3816.mp3")));
 //            playlist.add(new MediaWrapper(AndroidUtil.LocationToUri("http://www.noiseaddicts.com/samples_1w72b820/202.mp3")));
-            mService.load(playlist, 0);
+            mService.load(playlist);
         }
     }
 
@@ -93,10 +93,19 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
         findViewById(R.id.btnPlayPause).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (mService.isPlaying())
+                if (mService.isPlaying()) {
                     mService.pause();
-                else
+                } else {
                     mService.play();
+                }
+            }
+        });
+
+        findViewById(R.id.btnPlayIdx).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mService.playIndex(1);
+                mService.setTime(10000);
             }
         });
 

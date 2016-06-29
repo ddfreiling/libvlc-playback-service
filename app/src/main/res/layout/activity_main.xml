@@ -75,4 +75,12 @@
         android:id="@+id/labelPlaybackRate"
         android:layout_below="@+id/btnNext"
         android:layout_alignParentStart="true" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Play(1, 10s)"
+        android:id="@+id/btnPlayIdx"
+        android:layout_alignTop="@+id/btnNext"
+        android:layout_toEndOf="@+id/btnNext" />
 </RelativeLayout>

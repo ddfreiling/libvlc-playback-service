@@ -1108,7 +1108,7 @@ public class PlaybackService extends Service {
         long time = mSettings.getLong(audio ? "position_in_song" : "position_in_media", -1);
         mSavedTime = time;
         // load playlist
-        loadLocations(mediaPathList, position);
+        loadLocations(mediaPathList);
         if (time > 0)
             setTime(time);
         SharedPreferences.Editor editor = mSettings.edit();
@@ -1324,10 +1324,9 @@ public class PlaybackService extends Service {
      * into the primary or "currently playing" playlist.
      *
      * @param mediaPathList A list of locations to load
-     * @param position The position to start playing at
      */
     @MainThread
-    public void loadLocations(List<String> mediaPathList, int position) {
+    public void loadLocations(List<String> mediaPathList) {
         ArrayList<MediaWrapper> mediaList = new ArrayList<MediaWrapper>();
 //        MediaDatabase db = MediaDatabase.getInstance();
 
@@ -1345,7 +1344,7 @@ public class PlaybackService extends Service {
             }
             mediaList.add(mediaWrapper);
         }
-        load(mediaList, position);
+        load(mediaList);
     }
 
     @MainThread
@@ -1359,12 +1358,12 @@ public class PlaybackService extends Service {
 
     @MainThread
     public void loadLocation(String mediaPath) {
-        loadLocations(Collections.singletonList(mediaPath), 0);
+        loadLocations(Collections.singletonList(mediaPath));
     }
 
     @MainThread
-    public void load(List<MediaWrapper> mediaList, int position) {
-        Log.v(TAG, "Loading position " + ((Integer) position).toString() + " in " + mediaList.toString());
+    public void load(List<MediaWrapper> mediaList) {
+        Log.v(TAG, "Loading list: " + mediaList.toString());
 
         if (hasCurrentMedia())
             savePosition();
@@ -1383,26 +1382,21 @@ public class PlaybackService extends Service {
             Log.w(TAG, "Warning: empty media list, nothing to play !");
             return;
         }
-        if (mMediaList.size() > position && position >= 0) {
-            mCurrentIndex = position;
-        } else {
-            Log.w(TAG, "Warning: position " + position + " out of bounds");
-            mCurrentIndex = 0;
-        }
 
         // Add handler after loading the list
         mMediaList.addEventListener(mListEventListener);
 
-        playIndex(mCurrentIndex, 0);
+        // Autoplay disabled
+        //playIndex(mCurrentIndex, 0);
         saveMediaList();
-        onMediaChanged();
+        //onMediaChanged();
     }
 
     @MainThread
     public void load(MediaWrapper media) {
         ArrayList<MediaWrapper> arrayList = new ArrayList<MediaWrapper>();
         arrayList.add(media);
-        load(arrayList, 0);
+        load(arrayList);
     }
 
     /**
@@ -1468,7 +1462,7 @@ public class PlaybackService extends Service {
     public void append(List<MediaWrapper> mediaList) {
         if (!hasCurrentMedia())
         {
-            load(mediaList, 0);
+            load(mediaList);
             return;
         }
 
