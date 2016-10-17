@@ -5,52 +5,52 @@ android {
 
     productFlavors {
         fat {
-            dimension "abi"
+            dimension 'abi'
             ndk {
-                abiFilters "x86", "armeabi-v7a", "armeabi"
+                abiFilters 'x86', 'armeabi-v7a', 'armeabi'
             }
         }
         arm {
-            dimension "abi"
+            dimension 'abi'
             ndk {
-                abiFilter "armeabi"
+                abiFilter 'armeabi'
             }
         }
         armv7a {
-            dimension "abi"
+            dimension 'abi'
             ndk {
-                abiFilter "armeabi-v7a"
+                abiFilter 'armeabi-v7a'
             }
         }
         arm64_v8a {
-            dimension "abi"
+            dimension 'abi'
             ndk {
-                abiFilter "arm64-v8a"
+                abiFilter 'arm64-v8a'
             }
         }
         x86 {
-            dimension "abi"
+            dimension 'abi'
             ndk {
-                abiFilter "x86"
+                abiFilter 'x86'
             }
         }
         x86_64 {
-            dimension "abi"
+            dimension 'abi'
             ndk {
-                abiFilter "x86_64"
+                abiFilter 'x86_64'
             }
         }
     }
 
-    compileSdkVersion 23
-    buildToolsVersion "23.0.3"
+    compileSdkVersion 24
+    buildToolsVersion '24.0.1'
 
     defaultConfig {
-        applicationId "dk.nota.lyt.libvlc"
+        applicationId 'dk.nota.lyt.libvlc'
         minSdkVersion 19
-        targetSdkVersion 23
+        targetSdkVersion 24
         versionCode 1
-        versionName "1.0"
+        versionName '1.0'
     }
     buildTypes {
         release {
@@ -61,6 +61,6 @@ android {
 }
 
 dependencies {
-    compile 'com.android.support:appcompat-v7:23+'
+    compile 'com.android.support:appcompat-v7:24.2.1'
     compile project(':libvlc-service')
 }
