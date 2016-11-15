@@ -157,7 +157,7 @@ public class PlaybackService extends Service {
     private ComponentName mRemoteControlClientReceiverComponent;
 
     private LibVLC LibVLC() {
-        Log.i(TAG, "=== Creating LibVLC with options! ===");
+        Log.i(TAG, "=== Creating LibVLC with options ===");
         Log.i(TAG, "NetworkCache: "+ DefaultOptions.NetworkCaching);
         Log.i(TAG, "FileCache: "+ DefaultOptions.FileCaching);
         ArrayList<String> defaultOptions = new ArrayList<String>();
@@ -898,7 +898,7 @@ public class PlaybackService extends Service {
     private void initMediaSession() {
         ComponentName mediaButtonEventReceiver = new ComponentName(this, RemoteControlEventReceiver.class);
         mSessionCallback = new MediaSessionCallback();
-        mMediaSession = new MediaSessionCompat(this, "Lyt", mediaButtonEventReceiver, null);
+        mMediaSession = new MediaSessionCompat(this, "VLCWrapper", mediaButtonEventReceiver, null);
         mMediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS
                 | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
         mMediaSession.setCallback(mSessionCallback);
@@ -925,6 +925,7 @@ public class PlaybackService extends Service {
         public void onPlay() {
             play();
         }
+
         @Override
         public void onPause() {
             pause();
