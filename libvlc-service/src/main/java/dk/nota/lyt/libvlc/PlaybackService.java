@@ -157,9 +157,6 @@ public class PlaybackService extends Service {
     private ComponentName mRemoteControlClientReceiverComponent;
 
     private LibVLC LibVLC() {
-        Log.i(TAG, "=== Creating LibVLC with options ===");
-        Log.i(TAG, "NetworkCache: "+ DefaultOptions.NetworkCaching);
-        Log.i(TAG, "FileCache: "+ DefaultOptions.FileCaching);
         ArrayList<String> defaultOptions = new ArrayList<String>();
         if (DefaultOptions.AutoReconnect) {
             defaultOptions.add("--http-reconnect");

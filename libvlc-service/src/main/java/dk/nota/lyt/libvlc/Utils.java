@@ -22,6 +22,10 @@ public class Utils {
 
     public synchronized static LibVLC GetLibVLC(Context ctx, ArrayList<String> vlcOptions) throws IllegalStateException {
         if (sLibVLC == null) {
+            Log.i(TAG, "=== Creating LibVLC instance with options ===");
+            for (String option : vlcOptions) {
+                Log.i(TAG, "Option: "+ option);
+            }
             if (!VLCUtil.hasCompatibleCPU(ctx)) {
                 StringBuilder abiList = new StringBuilder();
                 for (String arch : VLCUtil.getABIList()) {
