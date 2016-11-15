@@ -490,7 +490,6 @@ public class PlaybackService extends Service {
                     changeAudioFocus(false);
                     break;
                 case MediaPlayer.Event.EncounteredError:
-                    showToast("MediaPlayer error with MRL: "+ mMediaList.getMRL(mCurrentIndex), Toast.LENGTH_SHORT);
                     executeUpdate();
                     executeUpdateProgress();
                     next();
@@ -1182,16 +1181,6 @@ public class PlaybackService extends Service {
         return true;
     }
 
-    private void showToast(String text, int duration) {
-        Message msg = new Message();
-        Bundle bundle = new Bundle();
-        bundle.putString("text", text);
-        bundle.putInt("duration", duration);
-        msg.setData(bundle);
-        msg.what = SHOW_TOAST;
-        mHandler.sendMessage(msg);
-    }
-
     @MainThread
     public boolean isPlaying() {
         return mMediaPlayer.isPlaying();
@@ -1336,8 +1325,7 @@ public class PlaybackService extends Service {
             MediaWrapper mediaWrapper = null; //db.getMedia(Uri.parse(location));
             if (mediaWrapper == null) {
                 if (!validateLocation(location)) {
-                    Log.w(TAG, "Invalid location " + location);
-                    showToast("Invalid media location", Toast.LENGTH_SHORT);
+                    Log.w(TAG, "Invalid media location " + location);
                     continue;
                 }
                 Log.v(TAG, "Creating on-the-fly Media object for " + location);
