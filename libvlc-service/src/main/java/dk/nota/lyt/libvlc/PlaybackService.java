@@ -119,6 +119,7 @@ public class PlaybackService extends Service {
     private MediaPlayer mMediaPlayer;
     private Activity mNotificationActivity;
     private String mNotificationAction;
+    private String mMediaListIdentifier;
 
     final private ArrayList<PlaybackEventHandler> mPlaybackEventHandlers = new ArrayList<>();
     private boolean mDetectHeadset = true;
@@ -1361,6 +1362,11 @@ public class PlaybackService extends Service {
         loadLocations(Collections.singletonList(mediaPath));
     }
 
+    public void load(List<MediaWrapper> mediaList, String identifier) {
+        load(mediaList);
+        mMediaListIdentifier = identifier;
+    }
+
     @MainThread
     public void load(List<MediaWrapper> mediaList) {
         Log.v(TAG, "Loading list: " + mediaList.toString());
@@ -1390,6 +1396,7 @@ public class PlaybackService extends Service {
         //playIndex(mCurrentIndex, 0);
         saveMediaList();
         //onMediaChanged();
+        mMediaListIdentifier = null;
     }
 
     @MainThread
@@ -1703,6 +1710,27 @@ public class PlaybackService extends Service {
     @MainThread
     public void setEqualizer(MediaPlayer.Equalizer equalizer) {
         mMediaPlayer.setEqualizer(equalizer);
+    }
+
+    /**
+     * Sets a unique identifier for the current media list.
+     * Used to easily recognize the list of media being played.
+     * @param identifier
+     */
+    @MainThread
+    public void setMediaListIdentifier(String identifier) {
+        mMediaListIdentifier = identifier;
+    }
+
+    /**
+     * Gets a unique identifier for the current media list.
+     * Either one previously set explicitly, or a hash based on the medialist's MRLs if not set.
+     * @return
+     */
+    @MainThread
+    public String getMediaListIdentifier() {
+        return mMediaListIdentifier != null ?
+            mMediaListIdentifier : Utils.getHashFromMediaList(mMediaList);
     }
 
     /**
