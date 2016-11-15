@@ -1364,6 +1364,7 @@ public class PlaybackService extends Service {
 
         mMediaList.removeEventListener(mListEventListener);
         mMediaList.clear();
+        mMediaListIdentifier = null;
         MediaWrapperList currentMediaList = mMediaList;
 
         mPrevious.clear();
@@ -1384,7 +1385,6 @@ public class PlaybackService extends Service {
         //playIndex(mCurrentIndex, 0);
         saveMediaList();
         //onMediaChanged();
-        mMediaListIdentifier = null;
     }
 
     @MainThread
