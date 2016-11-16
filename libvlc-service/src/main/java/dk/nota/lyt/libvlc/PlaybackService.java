@@ -19,7 +19,8 @@
  *****************************************************************************/
 
 /**
- * Heavily modified to fit our needs for the LYT project.
+ * Modified for audio-only use and features needed in the LYT3 project by Nota
+ * by Daniel Freiling (ddaf@nota.dk)
  */
 
 package dk.nota.lyt.libvlc;
@@ -665,6 +666,8 @@ public class PlaybackService extends Service {
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private void showNotification() {
+        Log.d(TAG, "Update Notification");
+
         PendingIntent piStop = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_STOP), PendingIntent.FLAG_UPDATE_CURRENT);
         PendingIntent piBackward = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_BACKWARD), PendingIntent.FLAG_UPDATE_CURRENT);
         PendingIntent piPlay = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_PLAYPAUSE), PendingIntent.FLAG_UPDATE_CURRENT);
@@ -682,8 +685,6 @@ public class PlaybackService extends Service {
         boolean isPlaying = mMediaPlayer.isPlaying();
         long playbackPosition = mMediaPlayer.getTime();
         MediaWrapper currentMedia = getCurrentMedia();
-
-        Log.d(TAG, "Playback position: "+ playbackPosition);
 
         bob.setStyle(new NotificationCompat.MediaStyle()
                 .setMediaSession(mMediaSession.getSessionToken())
@@ -784,7 +785,6 @@ public class PlaybackService extends Service {
         if (mPausable) {
             savePosition();
             mHandler.removeMessages(SHOW_PROGRESS);
-            // hideNotification(); // <-- see event handler
             mMediaPlayer.pause();
             broadcastMetadata();
 
@@ -1376,7 +1376,7 @@ public class PlaybackService extends Service {
 
     @MainThread
     public void load(List<MediaWrapper> mediaList) {
-        Log.v(TAG, "Loading list: " + mediaList.toString());
+        Log.v(TAG, "Loading medialist of size: " + mediaList.size());
 
         if (hasCurrentMedia())
             savePosition();
@@ -1591,6 +1591,8 @@ public class PlaybackService extends Service {
     @MainThread
     public void setRate(float rate) {
         mMediaPlayer.setRate(rate);
+        // Progress will now move at a different pace - update clients.
+        executeUpdateProgress();
     }
 
     @MainThread
