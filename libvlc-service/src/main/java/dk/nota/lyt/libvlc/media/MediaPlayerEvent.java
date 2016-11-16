@@ -30,6 +30,9 @@ public class MediaPlayerEvent {
     public static final int ESAdded             = 0x114;
     public static final int ESDeleted           = 0x115;
 
+    // Custom non-VLC events
+    public static final int SleepTimerReached   = 0x200;
+
     public final int type;
     private long arg1 = 0;
     private float arg2 = 0;
@@ -38,6 +41,16 @@ public class MediaPlayerEvent {
         this.type = event.type;
         this.arg1 = event.getTimeChanged();
         this.arg2 = event.getPositionChanged();
+    }
+
+    public MediaPlayerEvent(int type, long arg1, float arg2) {
+        this.type = type;
+        this.arg1 = arg1;
+        this.arg2 = arg2;
+    }
+
+    public MediaPlayerEvent(int type) {
+        this.type = type;
     }
 
     public long getTimeChanged() {

@@ -151,6 +151,8 @@ public class PlaybackService extends Service {
     private boolean mParsed = false;
     private boolean mSeekable = false;
     private boolean mPausable = false;
+    private CountDownTimer mSleepTimer;
+    private int mSleepTimerVolumeFadeDurationMillis = 5000;
     /**
      * RemoteControlClient is for lock screen playback control.
      */
@@ -785,6 +787,10 @@ public class PlaybackService extends Service {
             // hideNotification(); // <-- see event handler
             mMediaPlayer.pause();
             broadcastMetadata();
+
+            if (mSleepTimer != null && !mSleepTimer.isFinishedOrCancelled()) {
+                mSleepTimer.pause();
+            }
         }
     }
 
@@ -797,6 +803,9 @@ public class PlaybackService extends Service {
             mHandler.sendEmptyMessage(SHOW_PROGRESS);
             updateMetadata();
             broadcastMetadata();
+        }
+        if (mSleepTimer != null && mSleepTimer.isPaused()) {
+            mSleepTimer.resume();
         }
     }
 
@@ -827,6 +836,7 @@ public class PlaybackService extends Service {
         executeUpdate();
         executeUpdateProgress();
         changeAudioFocus(false);
+        cancelSleepTimer();
     }
 
     @MainThread
@@ -1729,6 +1739,78 @@ public class PlaybackService extends Service {
         return mMediaListIdentifier != null ?
             mMediaListIdentifier : Utils.getHashFromMediaList(mMediaList);
     }
+
+    @MainThread
+    public long getSleepTimerRemaining() {
+        if (mSleepTimer != null && !mSleepTimer.isFinishedOrCancelled()) {
+            return mSleepTimer.getMilisLeftUntilFinished();
+        } else {
+            return 0;
+        }
+    }
+
+    @MainThread
+    public void cancelSleepTimer() {
+        if (mSleepTimer != null && !mSleepTimer.isFinishedOrCancelled()) {
+            Log.d(TAG, "SleepTimer cancelled");
+            mSleepTimer.cancel();
+        }
+    }
+
+    @MainThread
+    public void setSleepTimer(long milliseconds) {
+        cancelSleepTimer();
+        mSleepTimer = new CountDownTimer(milliseconds, 200) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                Log.d(TAG, "SleepTimer remaining: "+ millisUntilFinished);
+            }
+            @Override
+            public void onFinish() {
+                Log.d(TAG, "SleepTimer reached - Fade volume & pause");
+                new Thread(mFadeOutAndPauseTask).start();
+                MediaPlayerEvent evt = new MediaPlayerEvent(MediaPlayerEvent.SleepTimerReached);
+                try {
+                    for (PlaybackEventHandler handler : mPlaybackEventHandlers)
+                        handler.onMediaPlayerEvent(evt);
+                } catch(Exception ex) {
+                    Log.d(TAG, "Error notifying PlaybackEventHandlers.onMediaPlayerEvent: "+ ex.getMessage());
+                }
+            }
+        };
+        mSleepTimer.start();
+        if (!this.isPlaying()) {
+            mSleepTimer.pause();
+        }
+    }
+
+    @MainThread
+    public void setSleepTimerVolumeFadeDuration(int milliseconds) {
+        this.mSleepTimerVolumeFadeDurationMillis = milliseconds;
+    }
+
+    private Runnable mFadeOutAndPauseTask = new Runnable() {
+        private int fadeTickMillis = 250;
+
+        @Override
+        public void run() {
+            // NOTE: Normal volume is 100, 0 is muted.
+            int previousVolume = PlaybackService.this.getVolume();
+            while (PlaybackService.this.getVolume() > 0) {
+                double decreaseBy = (double)fadeTickMillis / mSleepTimerVolumeFadeDurationMillis * 100.0;
+                int newVolume = Math.max(getVolume() - (int)decreaseBy, 0);
+                Log.d(TAG, "Fade volume: "+ newVolume);
+                setVolume(newVolume);
+                try {
+                    Thread.sleep(fadeTickMillis);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            PlaybackService.this.pause();
+            PlaybackService.this.setVolume(previousVolume);
+        }
+    };
 
     /**
      * Expand the current media.
