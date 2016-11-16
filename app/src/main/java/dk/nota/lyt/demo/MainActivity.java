@@ -1,5 +1,6 @@
 package dk.nota.lyt.demo;
 
+import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -12,9 +13,12 @@ import java.util.ArrayList;
 
 import dk.nota.lyt.libvlc.ConnectionCallback;
 import dk.nota.lyt.libvlc.DefaultOptions;
+import dk.nota.lyt.libvlc.PlaybackEventHandler;
 import dk.nota.lyt.libvlc.PlaybackService;
 import dk.nota.lyt.libvlc.PlaybackServiceHelper;
 import dk.nota.lyt.libvlc.Utils;
+import dk.nota.lyt.libvlc.media.MediaEvent;
+import dk.nota.lyt.libvlc.media.MediaPlayerEvent;
 import dk.nota.lyt.libvlc.media.MediaWrapper;
 
 public class MainActivity extends AppCompatActivity implements ConnectionCallback {
@@ -40,31 +44,59 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
         mHelper.onStop();
     }
 
-    public PlaybackServiceHelper getHelper() {
-        return mHelper;
-    }
-
     @Override
     public void onConnected(PlaybackService service) {
         mService = service;
         if (mService != null) {
-            Log.i(TAG, "------ CONNECTED TO SERVICE: Adding test media --------");
+            Log.i(TAG, "------ CONNECTED TO SERVICE -------");
+            Log.i(TAG, "--- Existing identifier: "+ mService.getMediaListIdentifier());
 
             mService.setNotificationActivity(MainActivity.this, OPENED_FROM_NOTIFICATION);
             ArrayList<MediaWrapper> playlist = new ArrayList<>();
             MediaWrapper media1 = GetMedia("http://www.noiseaddicts.com/samples_1w72b820/4357.mp3",
-                    "Skyggeforbandelsen", "Helene Tegtmeier", "Del 1 af 3",
+                    "Skyggeforbandelsen", "Helene Tegtmeier", "Del 1 af 2",
                     "http://bookcover.nota.dk/714070_w140_h200.jpg");
-            MediaWrapper media2 = GetMedia("http://www.noiseaddicts.com/samples_1w72b820/202.mp3",
+            MediaWrapper media2 = GetMedia("http://www.noiseaddicts.com/samples_1w72b820/4357.mp3",
+                    "Skyggeforbandelsen", "Helene Tegtmeier", "Del 2 af 2",
+                    "http://bookcover.nota.dk/714070_w140_h200.jpg");
+            MediaWrapper media3 = GetMedia("http://www.moviesoundclips.net/download.php?id=3706&ft=mp3",
                     "Gangsta rap", "Benjamin Zephaniah", "ALBUM",
                     null);
             playlist.add(media1);
             playlist.add(media2);
+            playlist.add(media3);
 //            playlist.add(new MediaWrapper(AndroidUtil.LocationToUri("http://www.noiseaddicts.com/samples_1w72b820/3816.mp3")));
 //            playlist.add(new MediaWrapper(AndroidUtil.LocationToUri("http://www.noiseaddicts.com/samples_1w72b820/202.mp3")));
-            mService.load(playlist);
+            if (!mService.getMediaListIdentifier().equals("123456")) {
+                mService.load(playlist);
+                mService.setMediaListIdentifier("123456");
+            }
+            mService.removeAllCallbacks();
+            mService.addCallback(eventHandler);
         }
     }
+
+    private PlaybackEventHandler eventHandler = new PlaybackEventHandler() {
+        @Override
+        public void update() {
+            Log.d(TAG, "Update");
+        }
+
+        @Override
+        public void updateProgress() {
+            Log.d(TAG, "UpdateProgress");
+        }
+
+        @Override
+        public void onMediaEvent(MediaEvent event) {
+            Log.d(TAG, "MediaEvent: " + event.type);
+        }
+
+        @Override
+        public void onMediaPlayerEvent(MediaPlayerEvent event) {
+            Log.d(TAG, "MediaPlayerEvent: " + event.type);
+        }
+    };
 
     private MediaWrapper GetMedia(String mediaUrl, String displayTitle, String artist, String album, String artworkUrl) {
         MediaWrapper media = new MediaWrapper(Utils.LocationToUri(mediaUrl));
@@ -158,6 +190,21 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
 
+            }
+        });
+
+        findViewById(R.id.btnSleep).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mService.setSleepTimer(5000);
+            }
+        });
+
+        findViewById(R.id.btnReload).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mHelper.onStop();
+                mHelper.onStart();
             }
         });
     }

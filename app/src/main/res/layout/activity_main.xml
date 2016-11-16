@@ -48,15 +48,6 @@
         android:layout_alignTop="@+id/btnPlayPause"
         android:layout_toEndOf="@+id/btnPlayPause" />
 
-    <CheckBox
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="2x"
-        android:id="@+id/checkBoxRate"
-        android:layout_alignBottom="@+id/btnStop"
-        android:layout_toEndOf="@+id/btnStop"
-        android:layout_alignTop="@+id/btnStop" />
-
     <SeekBar
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -83,4 +74,28 @@
         android:id="@+id/btnPlayIdx"
         android:layout_alignTop="@+id/btnNext"
         android:layout_toEndOf="@+id/btnNext" />
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="2x"
+        android:id="@+id/checkBoxRate"
+        android:layout_alignParentStart="true"
+        android:layout_below="@+id/seekBar" />
+
+    <Button
+        android:text="Sleep(5)"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@+id/btnStop"
+        android:layout_toEndOf="@+id/btnStop"
+        android:id="@+id/btnSleep" />
+
+    <Button
+        android:text="R"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/btnReload"
+        android:layout_above="@+id/btnPlayIdx"
+        android:layout_toEndOf="@+id/btnPlayIdx" />
 </RelativeLayout>
