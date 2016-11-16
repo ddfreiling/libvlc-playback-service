@@ -8,8 +8,7 @@ import org.videolan.libvlc.LibVLC;
 import org.videolan.libvlc.util.AndroidUtil;
 import org.videolan.libvlc.util.VLCUtil;
 
-import java.lang.reflect.Array;
-import java.security.DigestException;
+import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -121,19 +120,20 @@ public class Utils {
     }
 
     public static String getHashFromStrings(ArrayList<String> inputStrings) {
+        Log.i(TAG, "Get hash for: "+ Arrays.toString(inputStrings.toArray()));
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            MessageDigest md = MessageDigest.getInstance("SHA-1");
             for (String s : inputStrings) {
                 md.update(s.getBytes());
             }
-            return new String(md.digest());
+            return String.format("%032X", new BigInteger(1, md.digest()));
         } catch (NoSuchAlgorithmException e) {
             return Arrays.toString(inputStrings.toArray());
         }
     }
 
     public static String getHashFromMediaList(MediaWrapperList list) {
-        ArrayList<String> mrlList = new ArrayList<String>();
+        ArrayList<String> mrlList = new ArrayList<>();
         for (int i = 0; i < list.size(); i++) {
             mrlList.add(list.getMRL(i));
         }
