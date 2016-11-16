@@ -446,11 +446,19 @@ public class PlaybackService extends Service {
 
     private final MediaPlayer.EventListener mMediaPlayerListener = new MediaPlayer.EventListener() {
 
+        private void notifyPlaybackEventHandlers(MediaPlayer.Event event) {
+            try {
+                for (PlaybackEventHandler handler : mPlaybackEventHandlers)
+                    handler.onMediaPlayerEvent(new MediaPlayerEvent(event));
+            } catch(Exception ex) {
+                Log.d(TAG, "Error notifying PlaybackEventHandlers.onMediaPlayerEvent: "+ ex.getMessage());
+            }
+        }
+
         @Override
         public void onEvent(MediaPlayer.Event event) {
             switch (event.type) {
                 case MediaPlayer.Event.Playing:
-
                     Log.d(TAG, "MediaPlayer.Event.Playing");
                     executeUpdate();
                     publishState(event.type);
@@ -484,12 +492,18 @@ public class PlaybackService extends Service {
                     Log.d(TAG, "MediaPlayer.Event.EndReached");
                     executeUpdateProgress();
                     determinePrevAndNextIndices(true);
-                    next();
                     if (mWakeLock.isHeld())
                         mWakeLock.release();
                     changeAudioFocus(false);
+                    // FIX: next() will stop service if at end of playlist,
+                    // so we must first notify event handlers.
+                    if (mCurrentIndex == mMediaList.size() - 1) {
+                        notifyPlaybackEventHandlers(event);
+                    }
+                    next();
                     break;
                 case MediaPlayer.Event.EncounteredError:
+                    Log.d(TAG, "MediaPlayer.Event.EncounteredError");
                     executeUpdate();
                     executeUpdateProgress();
                     next();
@@ -514,12 +528,7 @@ public class PlaybackService extends Service {
                     mSeekable = event.getSeekable();
                     break;
             }
-            try {
-                for (PlaybackEventHandler handler : mPlaybackEventHandlers)
-                    handler.onMediaPlayerEvent(new MediaPlayerEvent(event));
-            } catch(Exception ex) {
-                Log.d(TAG, "Error notifying PlaybackEventHandlers.onMediaPlayerEvent: "+ ex.getMessage());
-            }
+            notifyPlaybackEventHandlers(event);
         }
     };
 
