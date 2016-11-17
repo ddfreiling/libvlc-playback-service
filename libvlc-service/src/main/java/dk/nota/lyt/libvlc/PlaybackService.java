@@ -497,13 +497,11 @@ public class PlaybackService extends Service {
                     if (mWakeLock.isHeld())
                         mWakeLock.release();
                     changeAudioFocus(false);
-                    // FIX: next() will stop service if at end of playlist,
-                    // so we must first notify event handlers.
-                    if (mCurrentIndex == mMediaList.size() - 1) {
-                        notifyPlaybackEventHandlers(event);
-                    }
+                    // FIX: next() changes mCurrentIndex and can stop service,
+                    // so we have to notify event handlers first.
+                    notifyPlaybackEventHandlers(event);
                     next();
-                    break;
+                    return;
                 case MediaPlayer.Event.EncounteredError:
                     Log.d(TAG, "MediaPlayer.Event.EncounteredError");
                     executeUpdate();
