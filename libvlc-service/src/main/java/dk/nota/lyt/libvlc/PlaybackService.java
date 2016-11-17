@@ -466,8 +466,7 @@ public class PlaybackService extends Service {
                     executeUpdate();
                     publishState(event.type);
                     executeUpdateProgress();
-
-                    final MediaWrapper mw = mMediaList.getMedia(mCurrentIndex);
+                    mHandler.sendEmptyMessage(SHOW_PROGRESS);
                     changeAudioFocus(true);
                     if (!mWakeLock.isHeld())
                         mWakeLock.acquire();
@@ -1303,7 +1302,7 @@ public class PlaybackService extends Service {
     public synchronized void addCallback(PlaybackEventHandler handler) {
         if (!mPlaybackEventHandlers.contains(handler)) {
             mPlaybackEventHandlers.add(handler);
-            if (hasCurrentMedia())
+            if (hasCurrentMedia() && isPlaying())
                 mHandler.sendEmptyMessage(SHOW_PROGRESS);
         }
     }
