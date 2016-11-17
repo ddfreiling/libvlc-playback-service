@@ -32,6 +32,7 @@ public class MediaPlayerEvent {
 
     // Custom non-VLC events
     public static final int SleepTimerReached   = 0x200;
+    public static final int SleepTimerCancelled = 0x201;
 
     public final int type;
     private long arg1 = 0;

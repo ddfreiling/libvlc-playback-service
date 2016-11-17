@@ -641,7 +641,7 @@ public class PlaybackService extends Service {
         @Override
         public void handleMessage(Message msg) {
             PlaybackService service = getOwner();
-            if(service == null) return;
+            if (service == null) return;
 
             switch (msg.what) {
                 case SHOW_PROGRESS:
@@ -654,7 +654,8 @@ public class PlaybackService extends Service {
                 case SHOW_TOAST:
                     final Bundle bundle = msg.getData();
                     final String text = bundle.getString("text");
-                    Toast.makeText(PlaybackService.this.getApplicationContext(), text, Toast.LENGTH_LONG).show();
+                    Toast.makeText(PlaybackService.this.getApplicationContext(),
+                            text, Toast.LENGTH_LONG).show();
                     break;
             }
         }
@@ -786,10 +787,7 @@ public class PlaybackService extends Service {
             mHandler.removeMessages(SHOW_PROGRESS);
             mMediaPlayer.pause();
             broadcastMetadata();
-
-            if (mSleepTimer != null && !mSleepTimer.isFinishedOrCancelled()) {
-                mSleepTimer.pause();
-            }
+            cancelSleepTimer();
         }
     }
 
@@ -1755,6 +1753,7 @@ public class PlaybackService extends Service {
         if (mSleepTimer != null && !mSleepTimer.isFinishedOrCancelled()) {
             Log.d(TAG, "SleepTimer cancelled");
             mSleepTimer.cancel();
+            notifyEventHandlers(MediaPlayerEvent.SleepTimerCancelled);
         }
     }
 
@@ -1769,19 +1768,25 @@ public class PlaybackService extends Service {
             @Override
             public void onFinish() {
                 Log.d(TAG, "SleepTimer reached - Fade volume & pause");
-                new Thread(mFadeOutAndPauseTask).start();
-                MediaPlayerEvent evt = new MediaPlayerEvent(MediaPlayerEvent.SleepTimerReached);
-                try {
-                    for (PlaybackEventHandler handler : mPlaybackEventHandlers)
-                        handler.onMediaPlayerEvent(evt);
-                } catch(Exception ex) {
-                    Log.d(TAG, "Error notifying PlaybackEventHandlers.onMediaPlayerEvent: "+ ex.getMessage());
+                if (isPlaying()) {
+                    new Thread(mFadeOutAndPauseTask).start();
                 }
+                notifyEventHandlers(MediaPlayerEvent.SleepTimerReached);
             }
         };
         mSleepTimer.start();
         if (!this.isPlaying()) {
             mSleepTimer.pause();
+        }
+    }
+
+    private void notifyEventHandlers(int eventType) {
+        MediaPlayerEvent evt = new MediaPlayerEvent(eventType);
+        try {
+            for (PlaybackEventHandler handler : mPlaybackEventHandlers)
+                handler.onMediaPlayerEvent(evt);
+        } catch(Exception ex) {
+            Log.d(TAG, "Error notifying PlaybackEventHandlers.onMediaPlayerEvent: "+ ex.getMessage());
         }
     }
 
