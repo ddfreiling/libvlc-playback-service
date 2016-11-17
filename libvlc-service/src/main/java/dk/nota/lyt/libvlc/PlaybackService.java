@@ -506,7 +506,11 @@ public class PlaybackService extends Service {
                     Log.d(TAG, "MediaPlayer.Event.EncounteredError");
                     executeUpdate();
                     executeUpdateProgress();
-                    next();
+                    if (mPausable) {
+                        pause();
+                    } else {
+                        stopPlayback();
+                    }
                     if (mWakeLock.isHeld())
                         mWakeLock.release();
                     break;
