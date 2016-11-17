@@ -64,6 +64,7 @@ public abstract class CountDownTimer {
         mStopTimeInFuture = SystemClock.elapsedRealtime() + mMillisInFuture;
         mHandler.sendMessage(mHandler.obtainMessage(MSG));
         mCancelled = false;
+        mFinished = false;
         mPaused = false;
         return this;
     }
@@ -89,6 +90,10 @@ public abstract class CountDownTimer {
         mPaused = false;
         mHandler.sendMessage(mHandler.obtainMessage(MSG));
         return mPauseTime;
+    }
+
+    public CountDownTimer reset() {
+        return start();
     }
 
     public boolean isFinishedOrCancelled() {
