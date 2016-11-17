@@ -100,8 +100,8 @@ public abstract class CountDownTimer {
         return mCancelled || mFinished;
     }
 
-    public long getMilisLeftUntilFinished() {
-        return Math.min(0, mStopTimeInFuture - SystemClock.elapsedRealtime());
+    public long getMillisLeftUntilFinished() {
+        return Math.max(0, mStopTimeInFuture - SystemClock.elapsedRealtime());
     }
 
     /**

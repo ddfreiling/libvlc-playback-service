@@ -1744,7 +1744,7 @@ public class PlaybackService extends Service {
     @MainThread
     public long getSleepTimerRemaining() {
         if (mSleepTimer != null && !mSleepTimer.isFinishedOrCancelled()) {
-            return mSleepTimer.getMilisLeftUntilFinished();
+            return mSleepTimer.getMillisLeftUntilFinished();
         } else {
             return 0;
         }
