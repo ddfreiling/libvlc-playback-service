@@ -1733,12 +1733,18 @@ public class PlaybackService extends Service {
     /**
      * Gets a unique identifier for the current media list.
      * Either one previously set explicitly, or a hash based on the medialist's MRLs if not set.
+     * If none or empty playlist it returns null.
      * @return
      */
     @MainThread
     public String getMediaListIdentifier() {
-        return mMediaListIdentifier != null ?
-            mMediaListIdentifier : Utils.getHashFromMediaList(mMediaList);
+        if (mMediaList == null || mMediaList.size() == 0) {
+            return null;
+        }
+        if (mMediaListIdentifier != null) {
+            return mMediaListIdentifier;
+        }
+        return Utils.getHashFromMediaList(mMediaList);
     }
 
     @MainThread
