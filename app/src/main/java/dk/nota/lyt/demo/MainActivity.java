@@ -48,8 +48,8 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
     public void onConnected(PlaybackService service) {
         mService = service;
         if (mService != null) {
-            Log.i(TAG, "------ CONNECTED TO SERVICE -------");
-            Log.i(TAG, "--- Existing identifier: "+ mService.getMediaListIdentifier());
+            Log.i(TAG, "--- Connected to: PlaybackService ---");
+            Log.i(TAG, "Current playlist identifier: "+ mService.getMediaListIdentifier());
 
             mService.setNotificationActivity(MainActivity.this, OPENED_FROM_NOTIFICATION);
             ArrayList<MediaWrapper> playlist = new ArrayList<>();
@@ -67,7 +67,8 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
             playlist.add(media3);
 //            playlist.add(new MediaWrapper(AndroidUtil.LocationToUri("http://www.noiseaddicts.com/samples_1w72b820/3816.mp3")));
 //            playlist.add(new MediaWrapper(AndroidUtil.LocationToUri("http://www.noiseaddicts.com/samples_1w72b820/202.mp3")));
-            if (!mService.getMediaListIdentifier().equals("123456")) {
+            String ident = mService.getMediaListIdentifier();
+            if (ident == null || !ident.equals("123456")) {
                 mService.load(playlist);
                 mService.setMediaListIdentifier("123456");
             }
@@ -95,6 +96,9 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
         @Override
         public void onMediaPlayerEvent(MediaPlayerEvent event) {
             Log.d(TAG, "MediaPlayerEvent: " + event.type);
+            if (event.type == MediaPlayerEvent.SleepTimerChanged) {
+                Log.d(TAG, "SleepTimerChanged: " + mService.getSleepTimerRemaining());
+            }
         }
     };
 
