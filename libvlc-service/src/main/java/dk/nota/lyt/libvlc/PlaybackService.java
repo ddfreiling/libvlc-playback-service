@@ -792,7 +792,7 @@ public class PlaybackService extends Service {
             mHandler.removeMessages(SHOW_PROGRESS);
             mMediaPlayer.pause();
             broadcastMetadata();
-            cancelSleepTimer();
+            pauseSleepTimer();
         }
     }
 
@@ -1764,30 +1764,47 @@ public class PlaybackService extends Service {
         if (mSleepTimer != null && !mSleepTimer.isFinishedOrCancelled()) {
             Log.d(TAG, "SleepTimer cancelled");
             mSleepTimer.cancel();
-            notifyEventHandlers(MediaPlayerEvent.SleepTimerCancelled);
+            notifyEventHandlers(MediaPlayerEvent.SleepTimerChanged);
+        }
+    }
+
+    @MainThread
+    public void pauseSleepTimer() {
+        if (mSleepTimer != null && !mSleepTimer.isFinishedOrCancelled()) {
+            mSleepTimer.pause();
+        }
+    }
+
+    @MainThread
+    public void resumeSleepTimer() {
+        if (mSleepTimer != null && mSleepTimer.isPaused()) {
+            mSleepTimer.resume();
         }
     }
 
     @MainThread
     public void setSleepTimer(long milliseconds) {
         cancelSleepTimer();
-        mSleepTimer = new CountDownTimer(milliseconds, 200) {
+        mSleepTimer = new CountDownTimer(milliseconds, 1000) {
+
             @Override
             public void onTick(long millisUntilFinished) {
-                Log.d(TAG, "SleepTimer remaining: "+ millisUntilFinished);
+                notifyEventHandlers(MediaPlayerEvent.SleepTimerChanged);
             }
+
             @Override
             public void onFinish() {
                 Log.d(TAG, "SleepTimer reached - Fade volume & pause");
                 if (isPlaying()) {
                     new Thread(mFadeOutAndPauseTask).start();
                 }
-                notifyEventHandlers(MediaPlayerEvent.SleepTimerReached);
+                notifyEventHandlers(MediaPlayerEvent.SleepTimerChanged);
             }
         };
         mSleepTimer.start();
+        notifyEventHandlers(MediaPlayerEvent.SleepTimerChanged);
         if (!this.isPlaying()) {
-            mSleepTimer.pause();
+            this.pauseSleepTimer();
         }
     }
 

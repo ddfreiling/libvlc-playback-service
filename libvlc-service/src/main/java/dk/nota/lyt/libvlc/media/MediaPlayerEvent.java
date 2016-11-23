@@ -31,8 +31,7 @@ public class MediaPlayerEvent {
     public static final int ESDeleted           = 0x115;
 
     // Custom non-VLC events
-    public static final int SleepTimerReached   = 0x200;
-    public static final int SleepTimerCancelled = 0x201;
+    public static final int SleepTimerChanged   = 0x200;
 
     public final int type;
     private long arg1 = 0;
