@@ -420,14 +420,16 @@ public class PlaybackService extends Service {
 
             }
             if (update) {
-                try {
-                    for (PlaybackEventHandler handler : mPlaybackEventHandlers)
+                for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
+                    try {
                         handler.onMediaEvent(new MediaEvent(event));
-                } catch(Exception ex) {
-                    Log.d(TAG, "Error notifying PlaybackEventHandlers.onMediaEvent: "+ ex.getMessage());
+                    } catch(Exception ex) {
+                        Log.d(TAG, "Error notifying PlaybackEventHandlers.onMediaEvent: "+ ex.getMessage());
+                    }
                 }
-                if (mParsed)
+                if (mParsed) {
                     showNotification();
+                }
             }
         }
     };
@@ -450,11 +452,12 @@ public class PlaybackService extends Service {
     private final MediaPlayer.EventListener mMediaPlayerListener = new MediaPlayer.EventListener() {
 
         private void notifyPlaybackEventHandlers(MediaPlayer.Event event) {
-            try {
-                for (PlaybackEventHandler handler : mPlaybackEventHandlers)
+            for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
+                try {
                     handler.onMediaPlayerEvent(new MediaPlayerEvent(event));
-            } catch(Exception ex) {
-                Log.d(TAG, "Error notifying PlaybackEventHandlers.onMediaPlayerEvent: "+ ex.getMessage());
+                } catch(Exception ex) {
+                    Log.d(TAG, "Error notifying PlaybackEventHandler.onMediaPlayerEvent: "+ ex.getMessage());
+                }
             }
         }
 
@@ -593,24 +596,24 @@ public class PlaybackService extends Service {
     };
 
     private void executeUpdate() {
-        try {
-            for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
+        for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
+            try {
                 handler.update();
+            } catch(Exception ex) {
+                Log.d(TAG, "Error notifying PlaybackEventHandler.update: "+ ex.getMessage());
             }
-        } catch(Exception ex) {
-            Log.d(TAG, "Error notifying PlaybackEventHandlers.update: "+ ex.getMessage());
         }
 
         updateMetadata();
     }
 
     private void executeUpdateProgress() {
-        try {
-            for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
+        for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
+            try {
                 handler.updateProgress();
+            } catch(Exception ex) {
+                Log.d(TAG, "Error notifying PlaybackEventHandler.updateProgress: "+ ex.getMessage());
             }
-        } catch(Exception ex) {
-            Log.d(TAG, "Error notifying PlaybackEventHandlers.updateProgress: "+ ex.getMessage());
         }
     }
 
@@ -1790,11 +1793,12 @@ public class PlaybackService extends Service {
 
     private void notifyEventHandlers(int eventType) {
         MediaPlayerEvent evt = new MediaPlayerEvent(eventType);
-        try {
-            for (PlaybackEventHandler handler : mPlaybackEventHandlers)
+        for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
+            try {
                 handler.onMediaPlayerEvent(evt);
-        } catch(Exception ex) {
-            Log.d(TAG, "Error notifying PlaybackEventHandlers.onMediaPlayerEvent: "+ ex.getMessage());
+            } catch (Exception ex) {
+                Log.d(TAG, "Error notifying PlaybackEventHandler.onMediaPlayerEvent: " + ex.getMessage());
+            }
         }
     }
 
