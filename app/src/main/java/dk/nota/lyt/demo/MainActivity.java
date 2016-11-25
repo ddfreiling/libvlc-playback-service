@@ -47,6 +47,10 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
     @Override
     public void onConnected(PlaybackService service) {
         mService = service;
+        this.loadPlaylist();
+    }
+
+    private void loadPlaylist() {
         if (mService != null) {
             Log.i(TAG, "--- Connected to: PlaybackService ---");
             Log.i(TAG, "Current playlist identifier: "+ mService.getMediaListIdentifier());
@@ -60,18 +64,18 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
                     "Skyggeforbandelsen", "Helene Tegtmeier", "Del 2 af 2",
                     "http://bookcover.nota.dk/714070_w140_h200.jpg");
             MediaWrapper media3 = GetMedia("http://www.moviesoundclips.net/download.php?id=3706&ft=mp3",
-                    "Gangsta rap", "Benjamin Zephaniah", "ALBUM",
+                    "Moustachio!", "Random", "END OF PLAYLIST",
                     null);
             playlist.add(media1);
             playlist.add(media2);
             playlist.add(media3);
 //            playlist.add(new MediaWrapper(AndroidUtil.LocationToUri("http://www.noiseaddicts.com/samples_1w72b820/3816.mp3")));
 //            playlist.add(new MediaWrapper(AndroidUtil.LocationToUri("http://www.noiseaddicts.com/samples_1w72b820/202.mp3")));
-            String ident = mService.getMediaListIdentifier();
-            if (ident == null || !ident.equals("123456")) {
-                mService.load(playlist);
-                mService.setMediaListIdentifier("123456");
-            }
+//            String ident = mService.getMediaListIdentifier();
+//            if (ident == null || !ident.equals("123456")) {
+            mService.load(playlist);
+            mService.setMediaListIdentifier("123456");
+//            }
             mService.removeAllCallbacks();
             mService.addCallback(eventHandler);
         }
@@ -95,10 +99,13 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
 
         @Override
         public void onMediaPlayerEvent(MediaPlayerEvent event) {
-            Log.d(TAG, "MediaPlayerEvent: " + event.type);
-            if (event.type == MediaPlayerEvent.SleepTimerChanged) {
-                Log.d(TAG, "SleepTimerChanged: " + mService.getSleepTimerRemaining());
+//            Log.d(TAG, "MediaPlayerEvent: " + event.type);
+            if (event.type == MediaPlayerEvent.TimeChanged) {
+                Log.d(TAG, "TimeChanged: " + mService.getTime());
             }
+//            if (event.type == MediaPlayerEvent.SleepTimerChanged) {
+//                Log.d(TAG, "SleepTimerChanged: " + mService.getSleepTimerRemaining());
+//            }
         }
     };
 
@@ -209,8 +216,26 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
             public void onClick(View view) {
                 mHelper.onStop();
                 mHelper.onStart();
+                MainActivity.this.loadPlaylist();
             }
         });
+
+//        new Thread(new Runnable() {
+//            @Override
+//            public void run() {
+//                Log.d(TAG, "START RUNNABLE");
+//                while (true) {
+//                    try {
+//                        if (mService != null) {
+//                            Log.d(TAG, "SleepTimer: " + mService.getSleepTimerRemaining());
+//                        }
+//                        Thread.sleep(500);
+//                    } catch (InterruptedException e) {
+//                        e.printStackTrace();
+//                    }
+//                }
+//            }
+//        }).start();
     }
 
     @Override
