@@ -3,6 +3,7 @@ package dk.nota.lyt.libvlc;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
+import android.util.Log;
 
 /**
  * Created by dfg on 16/11/2016.
@@ -22,7 +23,7 @@ public abstract class CountDownTimer {
 
     private long mStopTimeInFuture;
 
-    private long mPauseTime;
+    private long mPauseMillisRemaining = 0;
 
     private boolean mCancelled = false;
 
@@ -32,7 +33,7 @@ public abstract class CountDownTimer {
 
     /**
      * @param millisInFuture The number of millis in the future from the call
-     *   to {@link #start()} until the countdown is done and {@link #onFinish()}
+     *   to {@link #start(boolean)} until the countdown is done and {@link #onFinish()}
      *   is called.
      * @param countDownInterval The interval along the way to receive
      *   {@link #onTick(long)} callbacks.
@@ -54,18 +55,21 @@ public abstract class CountDownTimer {
 
     /**
      * Start the countdown.
+     * @param paused If the countdown should start in a paused state
      */
-    public synchronized final CountDownTimer start() {
+    public synchronized final CountDownTimer start(boolean paused) {
         if (mMillisInFuture <= 0) {
             onFinish();
             mFinished = true;
             return this;
         }
-        mStopTimeInFuture = SystemClock.elapsedRealtime() + mMillisInFuture;
-        mHandler.sendMessage(mHandler.obtainMessage(MSG));
+        long startTime = SystemClock.elapsedRealtime();
+        mStopTimeInFuture = startTime + mMillisInFuture;
         mCancelled = false;
         mFinished = false;
-        mPaused = false;
+        mPaused = paused;
+        mPauseMillisRemaining = mMillisInFuture;
+        mHandler.sendMessage(mHandler.obtainMessage(MSG));
         return this;
     }
 
@@ -77,23 +81,23 @@ public abstract class CountDownTimer {
      * Pause the countdown.
      */
     public long pause() {
-        mPauseTime = mStopTimeInFuture - SystemClock.elapsedRealtime();
+        mPauseMillisRemaining = mStopTimeInFuture - SystemClock.elapsedRealtime();
         mPaused = true;
-        return mPauseTime;
+        return mPauseMillisRemaining;
     }
 
     /**
      * Resume the countdown.
      */
     public long resume() {
-        mStopTimeInFuture = mPauseTime + SystemClock.elapsedRealtime();
+        mStopTimeInFuture = mPauseMillisRemaining + SystemClock.elapsedRealtime();
         mPaused = false;
         mHandler.sendMessage(mHandler.obtainMessage(MSG));
-        return mPauseTime;
+        return mPauseMillisRemaining;
     }
 
     public CountDownTimer reset() {
-        return start();
+        return start(false);
     }
 
     public boolean isFinishedOrCancelled() {
@@ -101,7 +105,10 @@ public abstract class CountDownTimer {
     }
 
     public long getMillisLeftUntilFinished() {
-        return Math.max(0, mStopTimeInFuture - SystemClock.elapsedRealtime());
+        Log.d("CDT", "mMillisInFuture: "+ mMillisInFuture);
+        Log.d("CDT", "mPauseMillisRemaining: "+ mPauseMillisRemaining);
+        return mPaused ? mPauseMillisRemaining :
+            Math.max(0, mStopTimeInFuture - SystemClock.elapsedRealtime());
     }
 
     /**

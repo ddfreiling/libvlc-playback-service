@@ -1820,10 +1820,10 @@ public class PlaybackService extends Service {
                 notifyEventHandlers(MediaPlayerEvent.SleepTimerChanged);
             }
         };
-        mSleepTimer.start();
+        mSleepTimer.start(true);
         notifyEventHandlers(MediaPlayerEvent.SleepTimerChanged);
-        if (!this.isPlaying()) {
-            this.pauseSleepTimer();
+        if (this.isPlaying()) {
+            this.resumeSleepTimer();
         }
     }
 
