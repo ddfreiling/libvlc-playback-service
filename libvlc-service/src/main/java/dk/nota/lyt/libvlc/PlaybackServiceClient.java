@@ -59,7 +59,7 @@ public class PlaybackServiceClient {
         if (mBound)
             throw new IllegalStateException("already connected");
         startService(mContext);
-        mBound = mContext.bindService(getServiceIntent(mContext), mServiceConnection, Context.BIND_AUTO_CREATE | Context.BIND_ABOVE_CLIENT);
+        mBound = mContext.bindService(getServiceIntent(mContext), mServiceConnection, Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT);
     }
 
     @MainThread
