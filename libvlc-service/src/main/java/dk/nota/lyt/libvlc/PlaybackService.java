@@ -1585,7 +1585,7 @@ public class PlaybackService extends Service {
 
     @MainThread
     public void setTime(long time) {
-        if (mSeekable)
+        if (mSeekable && getTime() != time)
             mMediaPlayer.setTime(time);
     }
 
