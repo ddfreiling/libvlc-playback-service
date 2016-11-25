@@ -77,7 +77,9 @@ import java.lang.ref.WeakReference;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
@@ -154,6 +156,9 @@ public class PlaybackService extends Service {
     private boolean mPausable = false;
     private CountDownTimer mSleepTimer;
     private int mSleepTimerVolumeFadeDurationMillis = 5000;
+    private HashSet<Integer> supportedSeekIntervals = new HashSet<Integer>(Arrays.asList(5, 15, 30, 60));
+    private int mSeekIntervalSec = 15;
+
     /**
      * RemoteControlClient is for lock screen playback control.
      */
@@ -339,6 +344,15 @@ public class PlaybackService extends Service {
         }
     }
 
+    @MainThread
+    public void setSeekIntervalSeconds(int intervalSeconds) {
+        if (!supportedSeekIntervals.contains(intervalSeconds)) {
+            throw new IllegalArgumentException("Invalid seek interval. Must be one of: "+
+                    Arrays.toString(supportedSeekIntervals.toArray()));
+        }
+        this.mSeekIntervalSec = intervalSeconds;
+    }
+
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         private boolean wasPlaying = false;
         @Override
@@ -378,12 +392,12 @@ public class PlaybackService extends Service {
             } else if (action.equalsIgnoreCase(ACTION_REMOTE_PAUSE)) {
                 if (hasCurrentMedia())
                     pause();
-            } else if (action.equalsIgnoreCase(ACTION_REMOTE_BACKWARD)) {
-                previous();
             } else if (action.equalsIgnoreCase(ACTION_REMOTE_STOP)) {
                 stopService();
+            } else if (action.equalsIgnoreCase(ACTION_REMOTE_BACKWARD)) {
+                setTime(Math.max(0, getTime() - mSeekIntervalSec * 1000));
             } else if (action.equalsIgnoreCase(ACTION_REMOTE_FORWARD)) {
-                next();
+                setTime(Math.min(getLength(), getTime() + mSeekIntervalSec * 1000));
             } else if (mDetectHeadset) {
                 if (action.equalsIgnoreCase(AudioManager.ACTION_AUDIO_BECOMING_NOISY)) {
                     Log.d(TAG, "Headset Removed.");
@@ -678,14 +692,19 @@ public class PlaybackService extends Service {
         PendingIntent piPlay = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_PLAYPAUSE), PendingIntent.FLAG_UPDATE_CURRENT);
         PendingIntent piForward = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_FORWARD), PendingIntent.FLAG_UPDATE_CURRENT);
 
+        String seekForwardIdStr = String.format("s%d_forw_white", mSeekIntervalSec);
+        String seekBackwardIdStr = String.format("s%d_back_white", mSeekIntervalSec);
+        int seekForwardId = getResources().getIdentifier(seekForwardIdStr, "drawable", getPackageName());
+        int seekBackwardId = getResources().getIdentifier(seekBackwardIdStr, "drawable", getPackageName());
+
         NotificationCompat.Builder bob = new NotificationCompat.Builder(this);
-        bob.addAction(R.drawable.ic_skip_previous_white_24dp, getText(R.string.previous), piBackward);
+        bob.addAction(seekBackwardId, getText(R.string.seekBackward), piBackward);
         if (mMediaPlayer.isPlaying()) {
-            bob.addAction(R.drawable.ic_pause_white_24dp, getText(R.string.pause), piPlay);
+            bob.addAction(R.drawable.pause_small_white, getText(R.string.pause), piPlay);
         } else {
-            bob.addAction(R.drawable.ic_play_arrow_white_24dp, this.getText(R.string.play), piPlay);
+            bob.addAction(R.drawable.play_small_white, this.getText(R.string.play), piPlay);
         }
-        bob.addAction(R.drawable.ic_skip_next_white_24dp, getText(R.string.next), piForward);
+        bob.addAction(seekForwardId, getText(R.string.seekForward), piForward);
 
         boolean isPlaying = mMediaPlayer.isPlaying();
         long playbackPosition = mMediaPlayer.getTime();

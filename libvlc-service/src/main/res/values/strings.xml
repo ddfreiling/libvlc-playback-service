@@ -2,6 +2,6 @@
     <string name="app_name">VLC PlaybackService Library</string>
     <string name="play">Play</string>
     <string name="pause">Pause</string>
-    <string name="next">Next</string>
-    <string name="previous">Previous</string>
+    <string name="seekForward">Seek Forward</string>
+    <string name="seekBackward">Seek Backward</string>
 </resources>
