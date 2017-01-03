@@ -515,7 +515,7 @@ public class PlaybackService extends Service {
                         mWakeLock.release();
                     changeAudioFocus(false);
                     // FIX: next() changes mCurrentIndex and can stop service,
-                    // so we have to notify event handlers first.
+                    // so we have to notify event handlers first (and return after next).
                     notifyPlaybackEventHandlers(event);
                     next();
                     return;
@@ -686,6 +686,8 @@ public class PlaybackService extends Service {
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private void showNotification() {
         Log.d(TAG, "Update Notification");
+        MediaWrapper currentMedia = getCurrentMedia();
+        if (currentMedia == null) return;
 
         PendingIntent piStop = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_STOP), PendingIntent.FLAG_UPDATE_CURRENT);
         PendingIntent piBackward = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_BACKWARD), PendingIntent.FLAG_UPDATE_CURRENT);
@@ -707,8 +709,7 @@ public class PlaybackService extends Service {
         bob.addAction(seekForwardId, getText(R.string.seekForward), piForward);
 
         boolean isPlaying = mMediaPlayer.isPlaying();
-        long playbackPosition = mMediaPlayer.getTime();
-        MediaWrapper currentMedia = getCurrentMedia();
+//        long playbackPosition = mMediaPlayer.getTime();
 
         bob.setStyle(new NotificationCompat.MediaStyle()
                 .setMediaSession(mMediaSession.getSessionToken())
@@ -735,7 +736,7 @@ public class PlaybackService extends Service {
         if (currentMedia.isPictureParsed()) {
             bob.setLargeIcon(currentMedia.getPicture());
         } else if (currentMedia.getArtworkURL() != null) {
-            loadArtworkFromUrlAsync(currentMedia.getArtworkURL(), bob);
+            loadMediaArtworkAsync(currentMedia, bob);
         } else {
             bob.setLargeIcon(getDefaultArtwork());
         }
@@ -758,21 +759,24 @@ public class PlaybackService extends Service {
         return mDefaultArtworkBitmap;
     }
 
-    private void loadArtworkFromUrlAsync(final String artworkUrl,
-                                         final NotificationCompat.Builder builder) {
+    private void loadMediaArtworkAsync(final MediaWrapper media,
+                                       final NotificationCompat.Builder builder) {
         Glide.with(getApplicationContext())
-            .load(artworkUrl)
+            .load(media.getArtworkURL())
             .asBitmap()
-            .fitCenter()
             .placeholder(R.drawable.default_album_artwork)
             .into(new SimpleTarget<Bitmap>() {
                 @Override
                 public void onResourceReady(Bitmap resource, GlideAnimation<? super Bitmap> glideAnimation) {
-                    builder.setLargeIcon(resource);
-                    NotificationManagerCompat.from(PlaybackService.this)
-                            .notify(NOTIFICATION_ID, builder.build());
-                    getCurrentMedia().setPicture(resource);
-                    getCurrentMedia().setPictureParsed(true);
+                    try {
+                        builder.setLargeIcon(resource);
+                        NotificationManagerCompat.from(PlaybackService.this)
+                                .notify(NOTIFICATION_ID, builder.build());
+                        media.setPicture(resource);
+                        media.setPictureParsed(true);
+                    } catch (Exception ex) {
+                        Log.d(TAG, "Failed to set image for media with URL: "+ media.getArtworkURL());
+                    }
                 }
             });
     }
