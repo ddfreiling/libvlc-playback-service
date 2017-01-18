@@ -765,6 +765,7 @@ public class PlaybackService extends Service {
         Glide.with(getApplicationContext())
             .load(media.getArtworkURL())
             .asBitmap()
+            .fitCenter()
             .placeholder(R.drawable.default_album_artwork)
             .into(new SimpleTarget<Bitmap>() {
                 @Override
