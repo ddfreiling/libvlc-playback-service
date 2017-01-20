@@ -719,11 +719,18 @@ public class PlaybackService extends Service {
                 .setCancelButtonIntent(piStop))
             .setSmallIcon(R.drawable.ic_notification)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setContentTitle(currentMedia.getTitle())
-            .setContentText(currentMedia.getArtist() + " - " + currentMedia.getAlbum())
-            .setTicker(currentMedia.getTitle()) //TODO: used by accessibility services!
             .setShowWhen(false)
-            .setDeleteIntent(piStop);
+            .setDeleteIntent(piStop)
+            .setContentTitle(currentMedia.getTitle())
+            .setTicker(currentMedia.getTitle()); //TODO: used by accessibility services!
+
+        if (currentMedia.getArtist() != null && currentMedia.getAlbum() != null) {
+            bob.setContentText(currentMedia.getArtist() + " - " + currentMedia.getAlbum());
+        } else if (currentMedia.getArtist() != null) {
+            bob.setContentText(currentMedia.getArtist());
+        } else if (currentMedia.getAlbum() != null) {
+            bob.setContentText(currentMedia.getArtist());
+        }
 
         if (mNotificationActivity != null) {
             Intent onClickIntent = new Intent(this, mNotificationActivity.getClass());
