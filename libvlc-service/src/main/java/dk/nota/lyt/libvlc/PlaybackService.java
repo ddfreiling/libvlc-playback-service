@@ -1412,8 +1412,9 @@ public class PlaybackService extends Service {
     public void load(List<MediaWrapper> mediaList) {
         Log.v(TAG, "Loading medialist of size: " + mediaList.size());
 
-        if (hasCurrentMedia())
-            savePosition();
+        if (hasCurrentMedia()) {
+            stopPlayback();
+        }
 
         mMediaList.removeEventListener(mListEventListener);
         mMediaList.clear();
@@ -1437,7 +1438,7 @@ public class PlaybackService extends Service {
         // Autoplay disabled
         //playIndex(mCurrentIndex, 0);
         saveMediaList();
-        //onMediaChanged();
+        onMediaChanged();
     }
 
     @MainThread
