@@ -10,10 +10,10 @@ ext {
 
     libraryDescription = 'A wrapper for LibVLC using a background service'
 
-    siteUrl = 'https://github.com/dfg-nota/libvlc-playback-service'
-    gitUrl = 'https://github.com/dfg-nota/libvlc-playback-service.git'
+    siteUrl = 'https://github.com/ddfreiling/libvlc-playback-service'
+    gitUrl = 'https://github.com/ddfreiling/libvlc-playback-service.git'
 
-    developerId = 'dfg-nota'
+    developerId = 'ddfreiling'
     developerName = 'Daniel Freiling'
     developerEmail = 'dfg@nota.dk'
 
@@ -22,8 +22,8 @@ ext {
     allLicenses = ["Apache-2.0"]
 
     // Update this on new version
-    libraryVersionCode = 17
-    libraryVersion = '0.6.1'
+    libraryVersionCode = 18
+    libraryVersion = '0.6.2'
 }
 
 android {
