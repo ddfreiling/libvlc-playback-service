@@ -1438,7 +1438,7 @@ public class PlaybackService extends Service {
         // Autoplay disabled
         //playIndex(mCurrentIndex, 0);
         saveMediaList();
-        onMediaChanged();
+        //onMediaChanged();
     }
 
     @MainThread
