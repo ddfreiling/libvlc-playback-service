@@ -351,7 +351,9 @@ public class PlaybackService extends Service {
                     Arrays.toString(supportedSeekIntervals.toArray()));
         }
         this.mSeekIntervalSec = intervalSeconds;
-        this.showNotification();
+        if (this.hasCurrentMedia()) {
+            this.showNotification();
+        }
     }
 
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
