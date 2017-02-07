@@ -47,6 +47,8 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
     @Override
     public void onConnected(PlaybackService service) {
         mService = service;
+        mService.removeAllCallbacks();
+        mService.addCallback(eventHandler);
         this.loadPlaylist();
     }
 
@@ -57,15 +59,16 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
 
             mService.setNotificationActivity(MainActivity.this, OPENED_FROM_NOTIFICATION);
             ArrayList<MediaWrapper> playlist = new ArrayList<>();
-            MediaWrapper media1 = GetMedia("http://www.noiseaddicts.com/samples_1w72b820/4357.mp3",
+            MediaWrapper media1 = GetMedia("https://ia800303.us.archive.org/7/items/George-Orwell-1984-Audio-book/1984-01.mp3",
                     "Skyggeforbandelsen", "Helene Tegtmeier", "Del 1 af 2",
                     "http://bookcover.nota.dk/714070_w140_h200.jpg");
-            MediaWrapper media2 = GetMedia("http://www.noiseaddicts.com/samples_1w72b820/4357.mp3",
+            MediaWrapper media2 = GetMedia("https://ia800303.us.archive.org/7/items/George-Orwell-1984-Audio-book/1984-02.mp3",
                     "Skyggeforbandelsen", "Helene Tegtmeier", "Del 2 af 2",
-                    "http://bookcover.nota.dk/714070_w140_h200.jpg");
+                    null);
             MediaWrapper media3 = GetMedia("http://www.moviesoundclips.net/download.php?id=3706&ft=mp3",
                     "Moustachio!", "Random", "END OF PLAYLIST",
-                    null);
+                    "");
+            playlist.add(media3);
             playlist.add(media1);
             playlist.add(media2);
             playlist.add(media3);
@@ -76,8 +79,6 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
             mService.load(playlist);
             mService.setMediaListIdentifier("123456");
 //            }
-            mService.removeAllCallbacks();
-            mService.addCallback(eventHandler);
         }
     }
 
@@ -99,10 +100,10 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
 
         @Override
         public void onMediaPlayerEvent(MediaPlayerEvent event) {
-//            Log.d(TAG, "MediaPlayerEvent: " + event.type);
-            if (event.type == MediaPlayerEvent.TimeChanged) {
-                Log.d(TAG, "TimeChanged: " + mService.getTime());
-            }
+            Log.d(TAG, "MediaPlayerEvent: " + event.type);
+//            if (event.type == MediaPlayerEvent.TimeChanged) {
+//                Log.d(TAG, "TimeChanged: " + mService.getTime());
+//            }
 //            if (event.type == MediaPlayerEvent.SleepTimerChanged) {
 //                Log.d(TAG, "SleepTimerChanged: " + mService.getSleepTimerRemaining());
 //            }
@@ -169,7 +170,7 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
         findViewById(R.id.btnStop).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mService.stopService();
+                mService.stopPlayback();
             }
         });
 
@@ -214,9 +215,10 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
         findViewById(R.id.btnReload).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                mHelper.onStop();
-                mHelper.onStart();
-                MainActivity.this.loadPlaylist();
+//                mHelper.onStop();
+//                mHelper.onStart();
+//                MainActivity.this.loadPlaylist();
+                mService.setSeekIntervalSeconds(30);
             }
         });
 
