@@ -40,6 +40,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.AudioManager;
 import android.media.AudioManager.OnAudioFocusChangeListener;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
@@ -104,6 +106,7 @@ public class PlaybackService extends Service {
     public static final String ACTION_REMOTE_PAUSE = ACTION_REMOTE_GENERIC+"Pause";
     public static final String ACTION_REMOTE_STOP = ACTION_REMOTE_GENERIC+"Stop";
     public static final String ACTION_REMOTE_FORWARD = ACTION_REMOTE_GENERIC+"Forward";
+    public static final String ACTION_REMOTE_RECOVER = ACTION_REMOTE_GENERIC+"Recover";
 
     /* Binder for Service RPC */
     private class LocalBinder extends Binder {
@@ -154,10 +157,13 @@ public class PlaybackService extends Service {
     private boolean mParsed = false;
     private boolean mSeekable = false;
     private boolean mPausable = false;
+    private long mWasDisconnectedAt = 0;
     private CountDownTimer mSleepTimer;
     private int mSleepTimerVolumeFadeDurationMillis = 5000;
-    private HashSet<Integer> supportedSeekIntervals = new HashSet<Integer>(Arrays.asList(5, 15, 30, 60));
+    private int mMaxNetworkRecoveryTimeMillis = 60000;
     private int mSeekIntervalSec = 15;
+    private HashSet<Integer> supportedSeekIntervals = new HashSet<Integer>(Arrays.asList(5, 15, 30, 60));
+
 
     /**
      * RemoteControlClient is for lock screen playback control.
@@ -202,7 +208,8 @@ public class PlaybackService extends Service {
 
         // Make sure the audio player will acquire a wake-lock while playing. If we don't do
         // that, the CPU might go to sleep while the song is playing, causing playback to stopService.
-        PowerManager pm = (PowerManager) this.getApplicationContext().getSystemService(Context.POWER_SERVICE);
+        PowerManager pm = (PowerManager) this.getApplicationContext()
+                .getSystemService(Context.POWER_SERVICE);
         mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
 
         IntentFilter filter = new IntentFilter();
@@ -215,7 +222,10 @@ public class PlaybackService extends Service {
         filter.addAction(ACTION_REMOTE_FORWARD);
         filter.addAction(Intent.ACTION_HEADSET_PLUG);
         filter.addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
-        registerReceiver(mReceiver, filter);
+        registerReceiver(mRemoteActionReceiver, filter);
+
+        IntentFilter connectivityFilter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
+        registerReceiver(mConnectivityReceiver, connectivityFilter);
     }
 
     @Override
@@ -226,12 +236,14 @@ public class PlaybackService extends Service {
             if (hasCurrentMedia())
                 return START_STICKY;
             else
-                loadLastPlaylist(TYPE_AUDIO);
+                loadLastPlaylist(TYPE_AUDIO, false);
         } else if (ACTION_REMOTE_PLAY.equals(intent.getAction())) {
             if (hasCurrentMedia())
                 play();
             else
-                loadLastPlaylist(TYPE_AUDIO);
+                loadLastPlaylist(TYPE_AUDIO, false);
+        } else if (ACTION_REMOTE_RECOVER.equals(intent.getAction())) {
+            loadLastPlaylist(TYPE_AUDIO, true);
         }
         return super.onStartCommand(intent, flags, startId);
     }
@@ -247,7 +259,8 @@ public class PlaybackService extends Service {
             unregisterReceiver(mRemoteControlClientReceiver);
             mRemoteControlClientReceiver = null;
         }
-        unregisterReceiver(mReceiver);
+        unregisterReceiver(mRemoteActionReceiver);
+        unregisterReceiver(mConnectivityReceiver);
         mMediaPlayer.release();
     }
 
@@ -356,7 +369,33 @@ public class PlaybackService extends Service {
         }
     }
 
-    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver mConnectivityReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(final Context context, final Intent intent) {
+            ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo currentNetInfo = cm.getActiveNetworkInfo();
+            boolean isOnline = currentNetInfo != null && currentNetInfo.isConnected();
+            Log.d(TAG,"Network Changed, isOnline? "+ isOnline);
+
+            if (isOnline && mWasDisconnectedAt > 0) {
+                Log.d(TAG,"Internet connection returned after loss during playback");
+                Intent recoverIntent = new Intent(context, PlaybackService.class);
+
+                if (System.currentTimeMillis() - mWasDisconnectedAt <= mMaxNetworkRecoveryTimeMillis) {
+                    Log.d(TAG,"Attempting playback resume");
+                    recoverIntent.setAction(PlaybackService.ACTION_REMOTE_RECOVER);
+                } else {
+                    Log.d(TAG,"Too late to attempt playback resume");
+                    notifyEventHandlers(MediaPlayerEvent.EncounteredError);
+                    stopPlayback();
+                }
+                mWasDisconnectedAt = 0;
+                context.startService(recoverIntent);
+            }
+        }
+    };
+
+    private final BroadcastReceiver mRemoteActionReceiver = new BroadcastReceiver() {
         private boolean wasPlaying = false;
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -468,14 +507,24 @@ public class PlaybackService extends Service {
 
     private final MediaPlayer.EventListener mMediaPlayerListener = new MediaPlayer.EventListener() {
 
-        private void notifyPlaybackEventHandlers(MediaPlayer.Event event) {
+        private void notifyPlaybackEventHandlers(MediaPlayerEvent event) {
             for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
                 try {
-                    handler.onMediaPlayerEvent(new MediaPlayerEvent(event));
+                    handler.onMediaPlayerEvent(event);
                 } catch(Exception ex) {
                     Log.d(TAG, "Error notifying PlaybackEventHandler.onMediaPlayerEvent: "+ ex.getMessage());
                 }
             }
+        }
+
+        private void onNetworkLostWhileStreaming() {
+            Log.d(TAG, String.format("Network lost while streaming, saving position: index %d @ %d",
+                    mCurrentIndex, getTime()));
+            mWasDisconnectedAt = System.currentTimeMillis();
+            savePosition();
+            changeAudioFocus(false);
+            mHandler.removeMessages(SHOW_PROGRESS);
+            notifyPlaybackEventHandlers(new MediaPlayerEvent(MediaPlayerEvent.WaitingForNetwork));
         }
 
         @Override
@@ -512,25 +561,34 @@ public class PlaybackService extends Service {
                     break;
                 case MediaPlayer.Event.EndReached:
                     Log.d(TAG, "MediaPlayer.Event.EndReached");
+                    if (getLength() - getTime() > 1000 && isPlayingRemoteFile()
+                            && !Utils.hasInternetConnection(getApplicationContext())) {
+                        onNetworkLostWhileStreaming();
+                        return;
+                    }
                     executeUpdateProgress();
                     determinePrevAndNextIndices(true);
                     if (mWakeLock.isHeld())
                         mWakeLock.release();
                     changeAudioFocus(false);
-                    // FIX: next() changes mCurrentIndex and can stop service,
+                    // FIX: next() changes mCurrentIndex and could stop service at end of playlist,
                     // so we have to notify event handlers first (and return after next).
-                    notifyPlaybackEventHandlers(event);
+                    notifyPlaybackEventHandlers(new MediaPlayerEvent(event));
                     next();
                     return;
                 case MediaPlayer.Event.EncounteredError:
                     Log.d(TAG, "MediaPlayer.Event.EncounteredError");
-                    executeUpdate();
-                    executeUpdateProgress();
-                    if (mPausable) {
+                    if (isPlayingRemoteFile() && !Utils.hasInternetConnection(getApplicationContext())) {
+                        onNetworkLostWhileStreaming();
+                        return;
+                    } else if (mPausable) {
                         pause();
                     } else {
                         stopPlayback();
                     }
+                    executeUpdate();
+                    executeUpdateProgress();
+                    mHandler.removeMessages(SHOW_PROGRESS);
                     if (mWakeLock.isHeld())
                         mWakeLock.release();
                     break;
@@ -552,7 +610,7 @@ public class PlaybackService extends Service {
                     mSeekable = event.getSeekable();
                     break;
             }
-            notifyPlaybackEventHandlers(event);
+            notifyPlaybackEventHandlers(new MediaPlayerEvent(event));
         }
     };
 
@@ -651,6 +709,19 @@ public class PlaybackService extends Service {
      */
     private boolean hasCurrentMedia() {
         return mCurrentIndex >= 0 && mCurrentIndex < mMediaList.size();
+    }
+
+    private boolean currentMediaLocationIsLocalFile() {
+        try {
+            String mediaLocation = getCurrentMediaLocation();
+            return mediaLocation.substring(0, 4).equals("file") || mediaLocation.substring(0, 7).equals("content");
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private boolean isPlayingRemoteFile() {
+        return isPlaying() && !currentMediaLocationIsLocalFile();
     }
 
     private final Handler mHandler = new AudioServiceHandler(this);
@@ -1143,7 +1214,7 @@ public class PlaybackService extends Service {
         sendBroadcast(broadcast);
     }
 
-    public synchronized void loadLastPlaylist(int type) {
+    public synchronized void loadLastPlaylist(int type, boolean startPlayback) {
         boolean audio = type == TYPE_AUDIO;
         String currentMedia = mSettings.getString(audio ? "current_song" : "current_media", "");
         if (currentMedia.equals(""))
@@ -1162,14 +1233,15 @@ public class PlaybackService extends Service {
                 Math.max(0, mediaPathList.indexOf(currentMedia)));
         long time = mSettings.getLong(audio ? "position_in_song" : "position_in_media", -1);
         mSavedTime = time;
+
+        Log.d(TAG, String.format("Load last playlist, at index %d, offset %d", position, time));
+
         // load playlist
         loadLocations(mediaPathList);
-        if (time > 0)
-            setTime(time);
-        SharedPreferences.Editor editor = mSettings.edit();
-        editor.putInt(audio ? "position_in_audio_list" : "position_in_media_list", 0);
-        editor.putLong(audio ? "position_in_song" : "position_in_media", 0);
-        editor.apply();
+
+        if (startPlayback) {
+            playIndex(position);
+        }
     }
 
     private synchronized void saveCurrentMedia() {
@@ -1208,6 +1280,7 @@ public class PlaybackService extends Service {
             if (mMediaList.getMedia(i).getType() == MediaWrapper.TYPE_VIDEO)
                 audio = false;
         }
+//        Log.e(TAG, String.format("Save position at %d @ %d (Audio %b)", mCurrentIndex, mMediaPlayer.getTime(), audio));
         editor.putBoolean(audio ? "audio_shuffling" : "media_shuffling", mShuffling);
         editor.putInt(audio ? "audio_repeating" : "media_repeating", mRepeating);
         editor.putInt(audio ? "position_in_audio_list" : "position_in_media_list", mCurrentIndex);
@@ -1439,7 +1512,7 @@ public class PlaybackService extends Service {
 
         // Autoplay disabled
         //playIndex(mCurrentIndex, 0);
-        saveMediaList();
+        //saveMediaList();
         //onMediaChanged();
     }
 
@@ -1475,6 +1548,7 @@ public class PlaybackService extends Service {
         if (mw == null)
             return;
 
+
         /* Pausable and seekable are true by default */
         mParsed = false;
         mPausable = mSeekable = true;
@@ -1492,7 +1566,9 @@ public class PlaybackService extends Service {
             mMediaPlayer.setTime(mSavedTime);
         mSavedTime = 0l;
 
-        determinePrevAndNextIndices();
+        saveMediaList();
+        onMediaChanged();
+//        determinePrevAndNextIndices();
     }
 
     /**
@@ -1502,6 +1578,12 @@ public class PlaybackService extends Service {
      */
     @MainThread
     public void playIndex(int index) {
+        playIndex(index, 0);
+    }
+
+    @MainThread
+    public void playIndexAtTime(int index, long time) {
+        mSavedTime = time;
         playIndex(index, 0);
     }
 
@@ -1857,6 +1939,11 @@ public class PlaybackService extends Service {
     @MainThread
     public void setSleepTimerVolumeFadeDuration(int milliseconds) {
         this.mSleepTimerVolumeFadeDurationMillis = milliseconds;
+    }
+
+    @MainThread
+    public void setMaxNetworkRecoveryTime(int milliseconds) {
+        this.mMaxNetworkRecoveryTimeMillis = milliseconds;
     }
 
     private Runnable mFadeOutAndPauseTask = new Runnable() {
