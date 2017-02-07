@@ -760,8 +760,8 @@ public class PlaybackService extends Service {
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private void showNotification() {
         Log.d(TAG, "Update Notification");
-        MediaWrapper currentMedia = getCurrentMedia();
-        if (currentMedia == null) return;
+        MediaWrapper media = getCurrentMedia();
+        if (media == null) return;
 
         PendingIntent piStop = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_STOP), PendingIntent.FLAG_UPDATE_CURRENT);
         PendingIntent piBackward = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_BACKWARD), PendingIntent.FLAG_UPDATE_CURRENT);
@@ -794,15 +794,18 @@ public class PlaybackService extends Service {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setShowWhen(false)
             .setDeleteIntent(piStop)
-            .setContentTitle(currentMedia.getTitle())
-            .setTicker(currentMedia.getTitle()); //TODO: used by accessibility services!
+            .setContentTitle(media.getTitle())
+            .setTicker(media.getTitle());
 
-        if (currentMedia.getArtist() != null && currentMedia.getAlbum() != null) {
-            bob.setContentText(currentMedia.getArtist() + " - " + currentMedia.getAlbum());
-        } else if (currentMedia.getArtist() != null) {
-            bob.setContentText(currentMedia.getArtist());
-        } else if (currentMedia.getAlbum() != null) {
-            bob.setContentText(currentMedia.getArtist());
+        if (media.getArtist() != null && media.getAlbum() != null) {
+            bob.setContentText(media.getArtist() + " - " + media.getAlbum());
+            bob.setTicker(media.getTitle() + " - " + media.getArtist() + " - "+ media.getAlbum());
+        } else if (media.getArtist() != null) {
+            bob.setContentText(media.getArtist());
+            bob.setTicker(media.getTitle() + " - " + media.getArtist());
+        } else if (media.getAlbum() != null) {
+            bob.setContentText(media.getArtist());
+            bob.setTicker(media.getTitle() + " - " + media.getAlbum());
         }
 
         if (mNotificationActivity != null) {
@@ -814,10 +817,10 @@ public class PlaybackService extends Service {
             bob.setContentIntent(piOnClick);
         }
 
-        if (currentMedia.isPictureParsed()) {
-            bob.setLargeIcon(currentMedia.getPicture());
-        } else if (currentMedia.getArtworkURL() != null) {
-            loadMediaArtworkAsync(currentMedia, bob);
+        if (media.isPictureParsed()) {
+            bob.setLargeIcon(media.getPicture());
+        } else if (media.getArtworkURL() != null) {
+            loadMediaArtworkAsync(media, bob);
         } else {
             bob.setLargeIcon(getDefaultArtwork());
         }
