@@ -40,7 +40,7 @@ public class Utils {
                 }
                 throw new IllegalStateException("LibVLC found no compatible device CPU. ABIs available:" + abiList);
             }
-            sLibVLC = new LibVLC(vlcOptions);
+            sLibVLC = new LibVLC(ctx, vlcOptions);
             LibVLC.setOnNativeCrashListener(new LibVLC.OnNativeCrashListener() {
                 @Override
                 public void onNativeCrash() {

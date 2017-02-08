@@ -1790,11 +1790,6 @@ public class PlaybackService extends Service {
     }
 
     @MainThread
-    public boolean addSubtitleTrack(String path) {
-        return mMediaPlayer.setSubtitleFile(path);
-    }
-
-    @MainThread
     public MediaPlayer.TrackDescription[] getSpuTracks() {
         return mMediaPlayer.getSpuTracks();
     }

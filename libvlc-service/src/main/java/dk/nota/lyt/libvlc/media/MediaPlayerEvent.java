@@ -10,7 +10,7 @@ public class MediaPlayerEvent {
     public static final int MediaChanged        = 0x100;
     //public static final int NothingSpecial      = 0x101;
     public static final int Opening             = 0x102;
-    //public static final int Buffering           = 0x103;
+    public static final int Buffering           = 0x103;
     public static final int Playing             = 0x104;
     public static final int Paused              = 0x105;
     public static final int Stopped             = 0x106;
@@ -71,5 +71,8 @@ public class MediaPlayerEvent {
     }
     public boolean getSeekable() {
         return arg1 != 0;
+    }
+    public float getBuffering() {
+        return arg2;
     }
 }
