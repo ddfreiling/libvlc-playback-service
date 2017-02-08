@@ -162,6 +162,7 @@ public class PlaybackService extends Service {
     private int mSleepTimerVolumeFadeDurationMillis = 5000;
     private int mMaxNetworkRecoveryTimeMillis = 60000;
     private int mSeekIntervalSec = 15;
+    private long mLatestTimeUpdateReceived;
     private HashSet<Integer> supportedSeekIntervals = new HashSet<Integer>(Arrays.asList(5, 15, 30, 60));
 
 
@@ -505,27 +506,27 @@ public class PlaybackService extends Service {
         return id != Media.Meta.NowPlaying || getCurrentMedia().getNowPlaying() != null;
     }
 
-    private final MediaPlayer.EventListener mMediaPlayerListener = new MediaPlayer.EventListener() {
-
-        private void notifyPlaybackEventHandlers(MediaPlayerEvent event) {
-            for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
-                try {
-                    handler.onMediaPlayerEvent(event);
-                } catch(Exception ex) {
-                    Log.d(TAG, "Error notifying PlaybackEventHandler.onMediaPlayerEvent: "+ ex.getMessage());
-                }
+    private void notifyPlaybackEventHandlers(MediaPlayerEvent event) {
+        for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
+            try {
+                handler.onMediaPlayerEvent(event);
+            } catch(Exception ex) {
+                Log.d(TAG, "Error notifying PlaybackEventHandler.onMediaPlayerEvent: "+ ex.getMessage());
             }
         }
+    }
 
-        private void onNetworkLostWhileStreaming() {
-            Log.d(TAG, String.format("Network lost while streaming, saving position: index %d @ %d",
-                    mCurrentIndex, getTime()));
-            mWasDisconnectedAt = System.currentTimeMillis();
-            savePosition();
-            changeAudioFocus(false);
-            mHandler.removeMessages(SHOW_PROGRESS);
-            notifyPlaybackEventHandlers(new MediaPlayerEvent(MediaPlayerEvent.WaitingForNetwork));
-        }
+    private void onNetworkLostWhileStreaming() {
+        Log.d(TAG, String.format("Network lost while streaming, saving position: index %d @ %d",
+                mCurrentIndex, getTime()));
+        mWasDisconnectedAt = System.currentTimeMillis();
+        savePosition();
+        changeAudioFocus(false);
+        mHandler.removeMessages(SHOW_PROGRESS);
+        notifyPlaybackEventHandlers(new MediaPlayerEvent(MediaPlayerEvent.WaitingForNetwork));
+    }
+
+    private final MediaPlayer.EventListener mMediaPlayerListener = new MediaPlayer.EventListener() {
 
         @Override
         public void onEvent(MediaPlayer.Event event) {
@@ -593,6 +594,7 @@ public class PlaybackService extends Service {
                         mWakeLock.release();
                     break;
                 case MediaPlayer.Event.TimeChanged:
+                    mLatestTimeUpdateReceived = System.currentTimeMillis();
                     break;
                 case MediaPlayer.Event.PositionChanged:
                     break;
@@ -683,6 +685,14 @@ public class PlaybackService extends Service {
     }
 
     private void executeUpdateProgress() {
+        if (isPlaying() && !currentMediaIsLocalFile()
+                && mWasDisconnectedAt == 0
+                && !Utils.hasInternetConnection(getApplicationContext())
+                && System.currentTimeMillis() - mLatestTimeUpdateReceived > 5000) {
+            // VLC says it is playing, but we have not received a TimeUpdate for 5 sec,
+            // assume the stupid silent VLC has lost connection while streaming...
+            onNetworkLostWhileStreaming();
+        }
         for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
             try {
                 handler.updateProgress();

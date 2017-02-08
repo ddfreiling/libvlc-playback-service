@@ -1,5 +1,6 @@
 package dk.nota.lyt.demo;
 
+import android.media.MediaPlayer;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -101,12 +102,15 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
         @Override
         public void onMediaPlayerEvent(MediaPlayerEvent event) {
             Log.d(TAG, "MediaPlayerEvent: " + event.type);
-//            if (event.type == MediaPlayerEvent.TimeChanged) {
-//                Log.d(TAG, "TimeChanged: " + mService.getTime());
-//            }
-//            if (event.type == MediaPlayerEvent.SleepTimerChanged) {
-//                Log.d(TAG, "SleepTimerChanged: " + mService.getSleepTimerRemaining());
-//            }
+            if (event.type == MediaPlayerEvent.WaitingForNetwork) {
+                Log.d(TAG, "-- WAITING FOR NETWORK --");
+            }
+            if (event.type == MediaPlayerEvent.TimeChanged) {
+                Log.d(TAG, "TimeChanged: " + mService.getTime());
+            }
+            if (event.type == MediaPlayerEvent.SleepTimerChanged) {
+                Log.d(TAG, "SleepTimerChanged: " + mService.getSleepTimerRemaining());
+            }
         }
     };
 
