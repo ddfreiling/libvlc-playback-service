@@ -561,7 +561,7 @@ public class PlaybackService extends Service {
                     break;
                 case MediaPlayer.Event.EndReached:
                     Log.d(TAG, "MediaPlayer.Event.EndReached");
-                    if (getLength() - getTime() > 1000 && isPlayingRemoteFile()
+                    if (getLength() - getTime() > 1000 && !currentMediaIsLocalFile()
                             && !Utils.hasInternetConnection(getApplicationContext())) {
                         onNetworkLostWhileStreaming();
                         return;
@@ -578,7 +578,7 @@ public class PlaybackService extends Service {
                     return;
                 case MediaPlayer.Event.EncounteredError:
                     Log.d(TAG, "MediaPlayer.Event.EncounteredError");
-                    if (isPlayingRemoteFile() && !Utils.hasInternetConnection(getApplicationContext())) {
+                    if (!currentMediaIsLocalFile() && !Utils.hasInternetConnection(getApplicationContext())) {
                         onNetworkLostWhileStreaming();
                         return;
                     } else if (mPausable) {
@@ -711,17 +711,13 @@ public class PlaybackService extends Service {
         return mCurrentIndex >= 0 && mCurrentIndex < mMediaList.size();
     }
 
-    private boolean currentMediaLocationIsLocalFile() {
+    private boolean currentMediaIsLocalFile() {
         try {
             String mediaLocation = getCurrentMediaLocation();
             return mediaLocation.substring(0, 4).equals("file") || mediaLocation.substring(0, 7).equals("content");
         } catch (Exception ex) {
             return false;
         }
-    }
-
-    private boolean isPlayingRemoteFile() {
-        return isPlaying() && !currentMediaLocationIsLocalFile();
     }
 
     private final Handler mHandler = new AudioServiceHandler(this);
