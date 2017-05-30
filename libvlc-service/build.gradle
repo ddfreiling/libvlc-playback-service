@@ -22,8 +22,8 @@ ext {
     allLicenses = ["Apache-2.0"]
 
     // Update this on new version
-    libraryVersionCode = 22
-    libraryVersion = '0.8.0'
+    libraryVersionCode = 23
+    libraryVersion = '0.8.1'
 }
 
 android {
