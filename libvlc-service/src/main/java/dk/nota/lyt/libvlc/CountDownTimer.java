@@ -69,7 +69,9 @@ public abstract class CountDownTimer {
         mFinished = false;
         mPaused = paused;
         mPauseMillisRemaining = mMillisInFuture;
-        mHandler.sendMessage(mHandler.obtainMessage(MSG));
+        if (!paused) {
+            mHandler.sendMessage(mHandler.obtainMessage(MSG));
+        }
         return this;
     }
 
@@ -81,6 +83,7 @@ public abstract class CountDownTimer {
      * Pause the countdown.
      */
     public long pause() {
+        mHandler.removeMessages(MSG);
         mPauseMillisRemaining = mStopTimeInFuture - SystemClock.elapsedRealtime();
         mPaused = true;
         return mPauseMillisRemaining;
@@ -105,8 +108,8 @@ public abstract class CountDownTimer {
     }
 
     public long getMillisLeftUntilFinished() {
-        Log.d("CDT", "mMillisInFuture: "+ mMillisInFuture);
-        Log.d("CDT", "mPauseMillisRemaining: "+ mPauseMillisRemaining);
+//        Log.d("CDT", "mMillisInFuture: "+ mMillisInFuture);
+//        Log.d("CDT", "mPauseMillisRemaining: "+ mPauseMillisRemaining);
         return mPaused ? mPauseMillisRemaining :
             Math.max(0, mStopTimeInFuture - SystemClock.elapsedRealtime());
     }
@@ -135,6 +138,7 @@ public abstract class CountDownTimer {
             synchronized (CountDownTimer.this) {
                 if (!mPaused) {
                     final long millisLeft = mStopTimeInFuture - SystemClock.elapsedRealtime();
+//                    Log.d("CDT", "tick, millisLeft: "+ millisLeft);
 
                     if (millisLeft <= 0) {
                         onFinish();
