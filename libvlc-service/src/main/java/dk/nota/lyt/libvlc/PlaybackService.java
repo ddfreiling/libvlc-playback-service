@@ -86,6 +86,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 import java.util.Stack;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import dk.nota.lyt.libvlc.media.MediaWrapper;
@@ -157,10 +159,11 @@ public class PlaybackService extends Service {
     private boolean mParsed = false;
     private boolean mSeekable = false;
     private boolean mPausable = false;
-    private long mWasDisconnectedAt = 0;
+    private long mWasDisconnectedAtTime = 0;
     private CountDownTimer mSleepTimer;
     private int mSleepTimerVolumeFadeDurationMillis = 5000;
     private int mMaxNetworkRecoveryTimeMillis = 60000;
+    private Timer mNetworkRecoveryTimeoutTimer;
     private int mSeekIntervalSec = 15;
     private long mLatestTimeUpdateReceived;
     private HashSet<Integer> supportedSeekIntervals = new HashSet<Integer>(Arrays.asList(5, 15, 30, 60));
@@ -378,19 +381,22 @@ public class PlaybackService extends Service {
             boolean isOnline = currentNetInfo != null && currentNetInfo.isConnected();
             Log.d(TAG,"Network Changed, isOnline? "+ isOnline);
 
-            if (isOnline && mWasDisconnectedAt > 0) {
+            if (isOnline && mWasDisconnectedAtTime > 0) {
                 Log.d(TAG,"Internet connection returned after loss during playback");
                 Intent recoverIntent = new Intent(context, PlaybackService.class);
 
-                if (System.currentTimeMillis() - mWasDisconnectedAt <= mMaxNetworkRecoveryTimeMillis) {
+                if (System.currentTimeMillis() - mWasDisconnectedAtTime <= mMaxNetworkRecoveryTimeMillis) {
                     Log.d(TAG,"Attempting playback resume");
+                    if (mNetworkRecoveryTimeoutTimer != null) {
+                        mNetworkRecoveryTimeoutTimer.cancel();
+                    }
                     recoverIntent.setAction(PlaybackService.ACTION_REMOTE_RECOVER);
                 } else {
                     Log.d(TAG,"Too late to attempt playback resume");
                     notifyEventHandlers(MediaPlayerEvent.EncounteredError);
                     stopPlayback();
                 }
-                mWasDisconnectedAt = 0;
+                mWasDisconnectedAtTime = 0;
                 context.startService(recoverIntent);
             }
         }
@@ -519,11 +525,27 @@ public class PlaybackService extends Service {
     private void onNetworkLostWhileStreaming() {
         Log.d(TAG, String.format("Network lost while streaming, saving position: index %d @ %d",
                 mCurrentIndex, getTime()));
-        mWasDisconnectedAt = System.currentTimeMillis();
+        mWasDisconnectedAtTime = System.currentTimeMillis();
         savePosition();
         changeAudioFocus(false);
         mHandler.removeMessages(SHOW_PROGRESS);
         notifyPlaybackEventHandlers(new MediaPlayerEvent(MediaPlayerEvent.WaitingForNetwork));
+
+        if (mNetworkRecoveryTimeoutTimer != null) {
+            mNetworkRecoveryTimeoutTimer.cancel();
+        }
+        mNetworkRecoveryTimeoutTimer = new Timer("network-recovery-timeout");
+        mNetworkRecoveryTimeoutTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                if (mWasDisconnectedAtTime > 0) {
+                    mWasDisconnectedAtTime = 0;
+                    Log.d(TAG, "Network recovery timeout reached, notify error and stop");
+                    notifyEventHandlers(MediaPlayerEvent.EncounteredError);
+                    stopPlayback();
+                }
+            }
+        }, mMaxNetworkRecoveryTimeMillis);
     }
 
     private final MediaPlayer.EventListener mMediaPlayerListener = new MediaPlayer.EventListener() {
@@ -553,6 +575,11 @@ public class PlaybackService extends Service {
                     break;
                 case MediaPlayer.Event.Stopped:
                     Log.d(TAG, "MediaPlayer.Event.Stopped");
+                    if (PlaybackService.this.mWasDisconnectedAtTime > 0) {
+                        // Waiting for network, do not send Stopped event.
+                        Log.d(TAG, "- Waiting for network, skip Stopped event notification!");
+                        return;
+                    }
                     executeUpdate();
                     publishState(event.type);
                     executeUpdateProgress();
@@ -686,7 +713,7 @@ public class PlaybackService extends Service {
 
     private void executeUpdateProgress() {
         if (isPlaying() && !currentMediaIsLocalFile()
-                && mWasDisconnectedAt == 0
+                && mWasDisconnectedAtTime == 0
                 && !Utils.hasInternetConnection(getApplicationContext())
                 && System.currentTimeMillis() - mLatestTimeUpdateReceived > 5000) {
             // VLC says it is playing, but we have not received a TimeUpdate for 5 sec,
