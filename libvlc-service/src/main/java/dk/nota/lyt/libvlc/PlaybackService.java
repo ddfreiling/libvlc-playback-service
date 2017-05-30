@@ -803,16 +803,9 @@ public class PlaybackService extends Service {
             .setContentTitle(media.getTitle())
             .setTicker(media.getTitle());
 
-        if (media.getArtist() != null && media.getAlbum() != null) {
-            bob.setContentText(media.getArtist() + " - " + media.getAlbum());
-            bob.setTicker(media.getTitle() + " - " + media.getArtist() + " - "+ media.getAlbum());
-        } else if (media.getArtist() != null) {
-            bob.setContentText(media.getArtist());
-            bob.setTicker(media.getTitle() + " - " + media.getArtist());
-        } else if (media.getAlbum() != null) {
-            bob.setContentText(media.getArtist());
-            bob.setTicker(media.getTitle() + " - " + media.getAlbum());
-        }
+        final String contentText = this.getContentText(media);
+        bob.setContentText(contentText);
+        bob.setTicker(media.getTitle() + " - " + contentText);
 
         if (mNotificationActivity != null) {
             Intent onClickIntent = new Intent(this, mNotificationActivity.getClass());
@@ -837,6 +830,18 @@ public class PlaybackService extends Service {
         } else {
             stopForeground(false);
             NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification);
+        }
+    }
+
+    private String getContentText(final MediaWrapper media) {
+        if (media.getAlbum() != null && media.getArtist() != null) {
+            return media.getAlbum() + " - " + media.getArtist();
+        } else if (media.getArtist() != null) {
+            return media.getArtist();
+        } else if (media.getAlbum() != null) {
+            return media.getAlbum();
+        } else {
+            return "";
         }
     }
 
