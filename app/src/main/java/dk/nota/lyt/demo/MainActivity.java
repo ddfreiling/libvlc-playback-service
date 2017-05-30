@@ -50,7 +50,10 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
         mService = service;
         mService.removeAllCallbacks();
         mService.addCallback(eventHandler);
-        this.loadPlaylist();
+
+        if (mService.getMediaListIdentifier() == null) {
+            this.loadPlaylist();
+        }
     }
 
     private void loadPlaylist() {
