@@ -793,7 +793,7 @@ public class PlaybackService extends Service {
 
         bob.setStyle(new NotificationCompat.MediaStyle()
                 .setMediaSession(mMediaSession.getSessionToken())
-                .setShowActionsInCompactView(1)
+                .setShowActionsInCompactView(0, 1)
                 .setShowCancelButton(true)
                 .setCancelButtonIntent(piStop))
             .setSmallIcon(R.drawable.ic_notification)
