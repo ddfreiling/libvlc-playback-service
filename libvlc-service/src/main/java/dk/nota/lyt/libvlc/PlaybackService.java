@@ -20,7 +20,7 @@
 
 /**
  * Modified for audio-only use and features needed in the LYT3 project by Nota
- * by Daniel Freiling (ddaf@nota.dk)
+ * by Daniel Freiling (dfg@nota.dk)
  */
 
 package dk.nota.lyt.libvlc;
