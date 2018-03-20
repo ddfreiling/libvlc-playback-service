@@ -794,7 +794,9 @@ public class PlaybackService extends Service {
     private void showNotification() {
         Log.d(TAG, "Update Notification");
         MediaWrapper media = getCurrentMedia();
+        MediaSessionCompat.Token token = this.getSessionToken();
         if (media == null) return;
+        if (token == null) return;
 
         PendingIntent piStop = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_STOP), PendingIntent.FLAG_UPDATE_CURRENT);
         PendingIntent piBackward = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_BACKWARD), PendingIntent.FLAG_UPDATE_CURRENT);
@@ -819,7 +821,7 @@ public class PlaybackService extends Service {
 //        long playbackPosition = mMediaPlayer.getTime();
 
         bob.setStyle(new NotificationCompat.MediaStyle()
-                .setMediaSession(mMediaSession.getSessionToken())
+                .setMediaSession(token)
                 .setShowActionsInCompactView(0, 1)
                 .setShowCancelButton(true)
                 .setCancelButtonIntent(piStop))
