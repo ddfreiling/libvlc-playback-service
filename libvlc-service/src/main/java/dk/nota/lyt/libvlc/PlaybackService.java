@@ -21,6 +21,9 @@
 /**
  * Modified for audio-only use and features needed in the LYT3 project by Nota
  * by Daniel Freiling (dfg@nota.dk)
+ *
+ * For original see:
+ * https://code.videolan.org/videolan/vlc-android/blob/master/vlc-android/src/org/videolan/vlc/
  */
 
 package dk.nota.lyt.libvlc;
@@ -28,6 +31,8 @@ package dk.nota.lyt.libvlc;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
@@ -38,6 +43,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.media.AudioManager;
 import android.media.AudioManager.OnAudioFocusChangeListener;
 import android.net.ConnectivityManager;
@@ -57,7 +63,8 @@ import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
-import android.support.v7.app.NotificationCompat;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.media.app.NotificationCompat.MediaStyle;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
@@ -249,6 +256,22 @@ public class PlaybackService extends Service {
         } else if (ACTION_REMOTE_RECOVER.equals(intent.getAction())) {
             loadLastPlaylist(TYPE_AUDIO, true);
         }
+
+        /*
+        // TODO: Enable this if foreground issues arise on Oreo+
+        // On Android Oreo+ we need to go enter foreground immediately.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
+            Notification.Builder builder = new Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
+                    .setContentTitle(getString(R.string.app_name))
+                    .setContentText("HEY LOOK AT ME")
+                    .setAutoCancel(true);
+
+            Notification notification = builder.build();
+            startForeground(NOTIFICATION_ID, notification);
+
+        }
+        */
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -487,7 +510,7 @@ public class PlaybackService extends Service {
                     try {
                         handler.onMediaEvent(new MediaEvent(event));
                     } catch(Exception ex) {
-                        Log.d(TAG, "Error notifying PlaybackEventHandlers.onMediaEvent: "+ ex.getMessage());
+                        Log.e(TAG, "Error notifying PlaybackEventHandlers.onMediaEvent: "+ ex.getMessage(), ex);
                     }
                 }
                 if (mParsed) {
@@ -513,11 +536,15 @@ public class PlaybackService extends Service {
     }
 
     private void notifyPlaybackEventHandlers(MediaPlayerEvent event) {
+        if (event == null) {
+            Log.w(TAG, "Invalid MediaPlayerEvent, skip notifying event-handlers");
+            return;
+        }
         for (PlaybackEventHandler handler : mPlaybackEventHandlers) {
             try {
                 handler.onMediaPlayerEvent(event);
             } catch(Exception ex) {
-                Log.d(TAG, "Error notifying PlaybackEventHandler.onMediaPlayerEvent: "+ ex.getMessage());
+                Log.e(TAG, "Error notifying PlaybackEventHandler.onMediaPlayerEvent: "+ ex.getMessage(), ex);
             }
         }
     }
@@ -704,7 +731,7 @@ public class PlaybackService extends Service {
             try {
                 handler.update();
             } catch(Exception ex) {
-                Log.d(TAG, "Error notifying PlaybackEventHandler.update: "+ ex.getMessage());
+                Log.e(TAG, "Error notifying PlaybackEventHandler.update: "+ ex.getMessage(), ex);
             }
         }
 
@@ -724,7 +751,7 @@ public class PlaybackService extends Service {
             try {
                 handler.updateProgress();
             } catch(Exception ex) {
-                Log.d(TAG, "Error notifying PlaybackEventHandler.updateProgress: "+ ex.getMessage());
+                Log.e(TAG, "Error notifying PlaybackEventHandler.updateProgress: "+ ex.getMessage(), ex);
             }
         }
     }
@@ -789,77 +816,120 @@ public class PlaybackService extends Service {
 
     private static final int REQ_CODE = 123;
     private static final int NOTIFICATION_ID = 99;
+    private static final String NOTIFICATION_CHANNEL_ID = "libvlc-playback-controls";
+
+    private boolean mIsForeground = false;
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private void showNotification() {
         Log.d(TAG, "Update Notification");
-        MediaWrapper media = getCurrentMedia();
-        MediaSessionCompat.Token token = this.getSessionToken();
-        if (media == null) return;
-        if (token == null) return;
 
-        PendingIntent piStop = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_STOP), PendingIntent.FLAG_UPDATE_CURRENT);
-        PendingIntent piBackward = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_BACKWARD), PendingIntent.FLAG_UPDATE_CURRENT);
-        PendingIntent piPlay = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_PLAYPAUSE), PendingIntent.FLAG_UPDATE_CURRENT);
-        PendingIntent piForward = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_FORWARD), PendingIntent.FLAG_UPDATE_CURRENT);
+        try {
 
-        String seekForwardIdStr = String.format("s%d_forw_white", mSeekIntervalSec);
-        String seekBackwardIdStr = String.format("s%d_back_white", mSeekIntervalSec);
-        int seekForwardId = getResources().getIdentifier(seekForwardIdStr, "drawable", getPackageName());
-        int seekBackwardId = getResources().getIdentifier(seekBackwardIdStr, "drawable", getPackageName());
+            MediaWrapper media = getCurrentMedia();
+            MediaSessionCompat.Token token = this.getSessionToken();
+            boolean isPlaying = mMediaPlayer.isPlaying();
+            if (media == null) return;
 
-        NotificationCompat.Builder bob = new NotificationCompat.Builder(this);
-        bob.addAction(seekBackwardId, getText(R.string.seekBackward), piBackward);
-        if (mMediaPlayer.isPlaying()) {
-            bob.addAction(R.drawable.pause_small_white, getText(R.string.pause), piPlay);
-        } else {
-            bob.addAction(R.drawable.play_small_white, this.getText(R.string.play), piPlay);
+            PendingIntent piStop = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_STOP), PendingIntent.FLAG_UPDATE_CURRENT);
+            PendingIntent piBackward = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_BACKWARD), PendingIntent.FLAG_UPDATE_CURRENT);
+            PendingIntent piPlay = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_PLAYPAUSE), PendingIntent.FLAG_UPDATE_CURRENT);
+            PendingIntent piForward = PendingIntent.getBroadcast(this, REQ_CODE, new Intent(ACTION_REMOTE_FORWARD), PendingIntent.FLAG_UPDATE_CURRENT);
+
+            String seekForwardIdStr = String.format("s%d_forw_white", mSeekIntervalSec);
+            String seekBackwardIdStr = String.format("s%d_back_white", mSeekIntervalSec);
+            int seekForwardId = getResources().getIdentifier(seekForwardIdStr, "drawable", getPackageName());
+            int seekBackwardId = getResources().getIdentifier(seekBackwardIdStr, "drawable", getPackageName());
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                createNotificationChannel();
+            }
+
+            final NotificationCompat.Builder bob = new NotificationCompat.Builder(this, "channel_id");
+            bob.addAction(seekBackwardId, getText(R.string.seekBackward), piBackward);
+            if (mMediaPlayer.isPlaying()) {
+                bob.addAction(R.drawable.pause_small_white, getText(R.string.pause), piPlay);
+            } else {
+                bob.addAction(R.drawable.play_small_white, this.getText(R.string.play), piPlay);
+            }
+            bob.addAction(seekForwardId, getText(R.string.seekForward), piForward);
+
+            if (token != null) {
+                final MediaStyle mediaStyle = new MediaStyle()
+                    .setMediaSession(token)
+                    .setShowActionsInCompactView(0, 1)
+                    .setShowCancelButton(true)
+                    .setCancelButtonIntent(piStop);
+                bob.setStyle(mediaStyle);
+            }
+
+            bob.setSmallIcon(R.drawable.ic_notification)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setShowWhen(false)
+                .setDeleteIntent(piStop)
+                .setContentTitle(media.getTitle())
+                .setTicker(media.getTitle())
+                .setColorized(true)
+                .setChannelId(NOTIFICATION_CHANNEL_ID);
+
+            final String contentText = this.getContentText(media);
+            bob.setContentText(contentText);
+            bob.setTicker(media.getTitle() + " - " + contentText);
+
+            if (mNotificationActivity != null) {
+                Intent onClickIntent = new Intent(this, mNotificationActivity.getClass());
+                onClickIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                onClickIntent.setAction(mNotificationAction);
+                onClickIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+                PendingIntent piOnClick = PendingIntent.getActivity(this, REQ_CODE, onClickIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+                bob.setContentIntent(piOnClick);
+            }
+
+            if (media.isPictureParsed()) {
+                bob.setLargeIcon(media.getPicture());
+            } else if (media.getArtworkURL() != null) {
+                loadMediaArtworkAsync(media, bob);
+            } else {
+                bob.setLargeIcon(getDefaultArtwork());
+            }
+
+            Notification notification = bob.build();
+            if (!AndroidUtil.isLolliPopOrLater() || isPlaying) {
+                if (!mIsForeground) {
+                    startForeground(NOTIFICATION_ID, notification);
+                    mIsForeground = true;
+                } else {
+                    NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification);
+                }
+            } else {
+                if (mIsForeground) {
+                    stopForeground(false);
+                    mIsForeground = false;
+                }
+                NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification);
+            }
+
+        } catch(IllegalArgumentException | IllegalStateException e) {
+            // FIX: Some bad Android firmwares can trigger these exceptions.
+            Log.e(TAG, "Failed to display notification", e);
         }
-        bob.addAction(seekForwardId, getText(R.string.seekForward), piForward);
+    }
 
-        boolean isPlaying = mMediaPlayer.isPlaying();
-//        long playbackPosition = mMediaPlayer.getTime();
-
-        bob.setStyle(new NotificationCompat.MediaStyle()
-                .setMediaSession(token)
-                .setShowActionsInCompactView(0, 1)
-                .setShowCancelButton(true)
-                .setCancelButtonIntent(piStop))
-            .setSmallIcon(R.drawable.ic_notification)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setShowWhen(false)
-            .setDeleteIntent(piStop)
-            .setContentTitle(media.getTitle())
-            .setTicker(media.getTitle());
-
-        final String contentText = this.getContentText(media);
-        bob.setContentText(contentText);
-        bob.setTicker(media.getTitle() + " - " + contentText);
-
-        if (mNotificationActivity != null) {
-            Intent onClickIntent = new Intent(this, mNotificationActivity.getClass());
-            onClickIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            onClickIntent.setAction(mNotificationAction);
-            onClickIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-            PendingIntent piOnClick = PendingIntent.getActivity(this, REQ_CODE, onClickIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-            bob.setContentIntent(piOnClick);
-        }
-
-        if (media.isPictureParsed()) {
-            bob.setLargeIcon(media.getPicture());
-        } else if (media.getArtworkURL() != null) {
-            loadMediaArtworkAsync(media, bob);
-        } else {
-            bob.setLargeIcon(getDefaultArtwork());
-        }
-
-        Notification notification = bob.build();
-        if (!AndroidUtil.isLolliPopOrLater() || isPlaying) {
-            startForeground(NOTIFICATION_ID, notification);
-        } else {
-            stopForeground(false);
-            NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification);
-        }
+    @TargetApi(Build.VERSION_CODES.O)
+    private void createNotificationChannel() {
+        NotificationManager mNotificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        NotificationChannel mChannel = new NotificationChannel(
+                NOTIFICATION_CHANNEL_ID,
+                getString(R.string.app_name),
+                NotificationManager.IMPORTANCE_LOW
+        );
+        mChannel.enableLights(false);
+        mChannel.enableVibration(false);
+        mChannel.setShowBadge(false);
+        mChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+        mChannel.setDescription("Playback controls");
+        mNotificationManager.createNotificationChannel(mChannel);
     }
 
     private String getContentText(final MediaWrapper media) {
@@ -906,20 +976,15 @@ public class PlaybackService extends Service {
             });
     }
 
-    private void hideNotification() {
-        hideNotification(true);
-    }
-
     /**
      * Hides the VLC notification and stops the service.
-     *
-     * @param stopPlayback True to also stopService playback at the same time. Set to false to preserve playback (e.g. for vout events)
      */
-    private void hideNotification(boolean stopPlayback) {
-        stopForeground(true);
+    private void hideNotification() {
+        if (mIsForeground) {
+            stopForeground(true);
+            mIsForeground = false;
+        }
         NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID);
-        if(stopPlayback)
-            stopSelf();
     }
 
     /**
@@ -987,6 +1052,7 @@ public class PlaybackService extends Service {
         executeUpdateProgress();
         changeAudioFocus(false);
         cancelSleepTimer();
+        stopSelf();
     }
 
     @MainThread
@@ -1969,7 +2035,7 @@ public class PlaybackService extends Service {
             try {
                 handler.onMediaPlayerEvent(evt);
             } catch (Exception ex) {
-                Log.d(TAG, "Error notifying PlaybackEventHandler.onMediaPlayerEvent: " + ex.getMessage());
+                Log.e(TAG, "Error notifying PlaybackEventHandler.onMediaPlayerEvent: " + ex.getMessage(), ex);
             }
         }
     }

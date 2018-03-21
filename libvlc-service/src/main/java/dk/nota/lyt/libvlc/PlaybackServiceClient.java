@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
 import android.support.annotation.MainThread;
+import android.support.v4.content.ContextCompat;
 
 /**
  * Created by dfg on 02-05-2016.
@@ -40,6 +41,9 @@ public class PlaybackServiceClient {
     }
 
     private static void startService(Context context) {
+        // TODO: We may need to use ContextCompat.startForegroundService >= Android Oreo in future
+        //       Right now we don't, as this service is started exclusively from a foreground app.
+        //       See https://developer.android.com/about/versions/oreo/background.html
         context.startService(getServiceIntent(context));
     }
 
@@ -59,7 +63,11 @@ public class PlaybackServiceClient {
         if (mBound)
             throw new IllegalStateException("already connected");
         startService(mContext);
-        mBound = mContext.bindService(getServiceIntent(mContext), mServiceConnection, Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT);
+        mBound = mContext.bindService(
+            getServiceIntent(mContext),
+            mServiceConnection,
+            Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT
+        );
     }
 
     @MainThread

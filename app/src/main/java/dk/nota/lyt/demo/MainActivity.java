@@ -32,21 +32,19 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
 
     @Override
     protected void onStart() {
+        Log.i(TAG, "onStart: Activity Started");
         super.onStart();
-
-        DefaultOptions.FileCaching = 5000;
-        DefaultOptions.NetworkCaching = 5000;
-        mHelper.onStart();
     }
 
     @Override
     protected void onStop() {
+        Log.i(TAG, "onStop: Activity Stopped");
         super.onStop();
-        mHelper.onStop();
     }
 
     @Override
     public void onConnected(PlaybackService service) {
+        Log.i(TAG, "onConnected");
         mService = service;
         mService.removeAllCallbacks();
         mService.addCallback(eventHandler);
@@ -54,6 +52,12 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
         if (mService.getMediaListIdentifier() == null) {
             this.loadPlaylist();
         }
+    }
+
+    @Override
+    public void onDisconnected() {
+        Log.i(TAG, "onDisconnected");
+        mService = null;
     }
 
     private void loadPlaylist() {
@@ -104,12 +108,16 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
 
         @Override
         public void onMediaPlayerEvent(MediaPlayerEvent event) {
-            Log.d(TAG, "MediaPlayerEvent: " + event.type);
+            //Log.d(TAG, "MediaPlayerEvent: " + event.type);
             if (event.type == MediaPlayerEvent.WaitingForNetwork) {
                 Log.d(TAG, "-- WAITING FOR NETWORK --");
             }
             if (event.type == MediaPlayerEvent.TimeChanged) {
-                Log.d(TAG, "TimeChanged: " + mService.getTime());
+                if (mService != null) {
+                    Log.d(TAG, "TimeChanged: " + mService.getTime());
+                } else {
+                    Log.w(TAG, "TimeChanged: mService NULL");
+                }
             }
             if (event.type == MediaPlayerEvent.SleepTimerChanged) {
                 Log.d(TAG, "SleepTimerChanged: " + mService.getSleepTimerRemaining());
@@ -124,12 +132,6 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
         media.setAlbum(album);
         media.setArtworkURL(artworkUrl);
         return media;
-    }
-
-    @Override
-    public void onDisconnected() {
-        mService = null;
-
     }
 
     @Override
@@ -245,11 +247,20 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
 //                }
 //            }
 //        }).start();
+
+        DefaultOptions.FileCaching = 5000;
+        DefaultOptions.NetworkCaching = 5000;
+        mHelper.onStart();
     }
 
     @Override
     protected void onDestroy() {
+        Log.d(TAG, "onDestroy: App Closing");
+
+        if (mService != null) {
+            mService.stopService();
+        }
+        mHelper.onStop();
         super.onDestroy();
-        Log.d(TAG, "onDestroy, app closing");
     }
 }
