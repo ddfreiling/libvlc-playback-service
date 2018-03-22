@@ -4,9 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/LibVLCServiceAndroid.iml" filepath="$PROJECT_DIR$/LibVLCServiceAndroid.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/libvlc-playback-service.iml" filepath="$PROJECT_DIR$/libvlc-playback-service.iml" />
-      <module fileurl="file://$PROJECT_DIR$/libvlc-service/libvlc-service.iml" filepath="$PROJECT_DIR$/libvlc-service/libvlc-service.iml" />
       <module fileurl="file://$PROJECT_DIR$/libvlc-service/libvlc-service.iml" filepath="$PROJECT_DIR$/libvlc-service/libvlc-service.iml" />
     </modules>
   </component>
