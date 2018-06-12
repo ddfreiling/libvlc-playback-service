@@ -1037,16 +1037,22 @@ public class PlaybackService extends Service {
             mMediaSession.release();
             mMediaSession = null;
         }
-        if (mMediaPlayer == null)
+        if (mMediaPlayer == null) {
             return;
+        }
         savePosition();
         final Media media = mMediaPlayer.getMedia();
         if (media != null) {
-            media.setEventListener(null);
-            mMediaPlayer.setEventListener(null);
-            mMediaPlayer.stop();
-            mMediaPlayer.setMedia(null);
-            media.release();
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    mMediaPlayer.setEventListener(null);
+                    mMediaPlayer.stop();
+                    mMediaPlayer.setMedia(null);
+                    media.setEventListener(null);
+                    media.release();
+                }
+            }).start();
         }
         mMediaList.removeEventListener(mListEventListener);
         mCurrentIndex = -1;
