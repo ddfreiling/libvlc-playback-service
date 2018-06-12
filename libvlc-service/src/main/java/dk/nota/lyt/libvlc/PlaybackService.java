@@ -562,15 +562,24 @@ public class PlaybackService extends Service {
         if (mNetworkRecoveryTimeoutTimer != null) {
             mNetworkRecoveryTimeoutTimer.cancel();
         }
+        final WeakReference<PlaybackService> owner = new WeakReference<>(this);
         mNetworkRecoveryTimeoutTimer = new Timer("network-recovery-timeout");
         mNetworkRecoveryTimeoutTimer.schedule(new TimerTask() {
             @Override
             public void run() {
                 if (mWasDisconnectedAtTime > 0) {
                     mWasDisconnectedAtTime = 0;
+
+                    PlaybackService service = owner.get();
+                    if (service == null) return;
+
                     Log.d(TAG, "Network recovery timeout reached, notify error and stop");
-                    notifyEventHandlers(MediaPlayerEvent.EncounteredError);
-                    stopPlayback();
+                    try {
+                        service.notifyEventHandlers(MediaPlayerEvent.EncounteredError);
+                        service.stopPlayback();
+                    } catch (Exception ex) {
+                        Log.e(TAG, "Error during network recovery timeout", ex);
+                    }
                 }
             }
         }, mMaxNetworkRecoveryTimeMillis);
