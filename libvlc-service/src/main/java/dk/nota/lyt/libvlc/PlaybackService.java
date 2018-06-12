@@ -243,7 +243,7 @@ public class PlaybackService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null)
             return START_STICKY;
-        if(ACTION_REMOTE_PLAYPAUSE.equals(intent.getAction())){
+        if (ACTION_REMOTE_PLAYPAUSE.equals(intent.getAction())) {
             if (hasCurrentMedia())
                 return START_STICKY;
             else
@@ -257,12 +257,14 @@ public class PlaybackService extends Service {
             loadLastPlaylist(TYPE_AUDIO, true);
         }
 
+        this.createNotificationChannel();
+
         /*
         // TODO: Enable this if foreground issues arise on Oreo+
-        // On Android Oreo+ we need to go enter foreground immediately.
+        // On Android Oreo+ we need to enter foreground immediately.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 
-            Notification.Builder builder = new Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
                     .setContentTitle(getString(R.string.app_name))
                     .setContentText("HEY LOOK AT ME")
                     .setAutoCancel(true);
@@ -307,8 +309,7 @@ public class PlaybackService extends Service {
         return mMediaPlayer.getVLCVout();
     }
 
-    private final OnAudioFocusChangeListener mAudioFocusListener = AndroidUtil.isFroyoOrLater() ?
-            createOnAudioFocusChangeListener() : null;
+    private final OnAudioFocusChangeListener mAudioFocusListener = createOnAudioFocusChangeListener();
 
     private OnAudioFocusChangeListener createOnAudioFocusChangeListener() {
         return new OnAudioFocusChangeListener() {
@@ -816,7 +817,7 @@ public class PlaybackService extends Service {
 
     private static final int REQ_CODE = 123;
     private static final int NOTIFICATION_ID = 99;
-    private static final String NOTIFICATION_CHANNEL_ID = "libvlc-playback-controls";
+    private static final String NOTIFICATION_CHANNEL_ID = "libvlc-service-nowplaying";
 
     private boolean mIsForeground = false;
 
@@ -841,11 +842,7 @@ public class PlaybackService extends Service {
             int seekForwardId = getResources().getIdentifier(seekForwardIdStr, "drawable", getPackageName());
             int seekBackwardId = getResources().getIdentifier(seekBackwardIdStr, "drawable", getPackageName());
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                createNotificationChannel();
-            }
-
-            final NotificationCompat.Builder bob = new NotificationCompat.Builder(this, "channel_id");
+            final NotificationCompat.Builder bob = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID);
             bob.addAction(seekBackwardId, getText(R.string.seekBackward), piBackward);
             if (mMediaPlayer.isPlaying()) {
                 bob.addAction(R.drawable.pause_small_white, getText(R.string.pause), piPlay);
@@ -894,7 +891,7 @@ public class PlaybackService extends Service {
             }
 
             Notification notification = bob.build();
-            if (!AndroidUtil.isLolliPopOrLater() || isPlaying) {
+            if (!AndroidUtil.isLolliPopOrLater || isPlaying) {
                 if (!mIsForeground) {
                     startForeground(NOTIFICATION_ID, notification);
                     mIsForeground = true;
@@ -1420,7 +1417,12 @@ public class PlaybackService extends Service {
 
     @MainThread
     public boolean isPlaying() {
-        return mMediaPlayer.isPlaying();
+        try {
+            return mMediaPlayer.isPlaying();
+        } catch (Exception ex) {
+            Log.e(TAG, "Error on isPlaying check", ex);
+            return false;
+        }
     }
 
     @MainThread

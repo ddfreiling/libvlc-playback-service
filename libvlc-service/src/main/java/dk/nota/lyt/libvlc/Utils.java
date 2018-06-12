@@ -41,12 +41,6 @@ public class Utils {
                 throw new IllegalStateException("LibVLC found no compatible device CPU. ABIs available:" + abiList);
             }
             sLibVLC = new LibVLC(ctx, vlcOptions);
-            LibVLC.setOnNativeCrashListener(new LibVLC.OnNativeCrashListener() {
-                @Override
-                public void onNativeCrash() {
-                    Log.e(TAG, "Native crash in LibVLC on PID "+ android.os.Process.myPid());
-                }
-            });
         }
         return sLibVLC;
     }
