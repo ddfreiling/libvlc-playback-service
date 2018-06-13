@@ -28,7 +28,6 @@
 
 package dk.nota.lyt.libvlc;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -43,7 +42,8 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.media.AudioManager.OnAudioFocusChangeListener;
 import android.net.ConnectivityManager;
@@ -58,8 +58,11 @@ import android.os.Message;
 import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.support.annotation.MainThread;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.annotation.RequiresApi;
 import android.support.v4.app.NotificationManagerCompat;
+import android.support.v4.media.AudioAttributesCompat;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
@@ -365,6 +368,41 @@ public class PlaybackService extends Service {
         };
     }
 
+    private AudioFocusRequest mAudioFocusRequest;
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private int requestAudioFocus(@NonNull AudioManager am) {
+        final AudioAttributesCompat audioAttributes = new AudioAttributesCompat.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setLegacyStreamType(AudioManager.STREAM_MUSIC)
+                .build();
+        mAudioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAcceptsDelayedFocusGain(false)
+                .setWillPauseWhenDucked(true)
+                .setAudioAttributes((AudioAttributes) audioAttributes.unwrap())
+                .setOnAudioFocusChangeListener(mAudioFocusListener)
+                .build();
+        return am.requestAudioFocus(mAudioFocusRequest);
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private int abandonAudioFocus(@NonNull AudioManager am) {
+        if (mAudioFocusRequest == null) return 0;
+        return am.abandonAudioFocusRequest(mAudioFocusRequest);
+    }
+
+    @SuppressWarnings("deprecation")
+    private int requestAudioFocusLegacy(@NonNull AudioManager am) {
+        return am.requestAudioFocus(mAudioFocusListener,
+                AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+    }
+
+    @SuppressWarnings("deprecation")
+    private int abandonAudioFocusLegacy(@NonNull AudioManager am) {
+        return am.abandonAudioFocus(mAudioFocusListener);
+    }
+
     private void changeAudioFocus(boolean acquire) {
         final AudioManager am = (AudioManager)getSystemService(AUDIO_SERVICE);
         if (am == null)
@@ -372,8 +410,13 @@ public class PlaybackService extends Service {
 
         if (acquire) {
             if (!mHasAudioFocus) {
-                final int result = am.requestAudioFocus(mAudioFocusListener,
-                        AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+                int result;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    result = requestAudioFocus(am);
+                } else {
+                    result = requestAudioFocusLegacy(am);
+                }
+                Log.i(TAG, "AudioFocus granted ? " + result);
                 if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
                     am.setParameters("bgm_state=true");
                     mHasAudioFocus = true;
@@ -381,7 +424,11 @@ public class PlaybackService extends Service {
             }
         } else {
             if (mHasAudioFocus) {
-                final int result = am.abandonAudioFocus(mAudioFocusListener);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    abandonAudioFocus(am);
+                } else {
+                    abandonAudioFocusLegacy(am);
+                }
                 am.setParameters("bgm_state=false");
                 mHasAudioFocus = false;
             }
@@ -833,10 +880,8 @@ public class PlaybackService extends Service {
 
     private boolean mIsForeground = false;
 
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private void showNotification() {
         Log.d(TAG, "Update Notification");
-
         try {
 
             MediaWrapper media = getCurrentMedia();
@@ -924,7 +969,7 @@ public class PlaybackService extends Service {
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.O)
+    @RequiresApi(Build.VERSION_CODES.O)
     private void createNotificationChannel() {
         NotificationManager mNotificationManager =
                 (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
