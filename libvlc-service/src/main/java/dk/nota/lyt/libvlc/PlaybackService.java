@@ -1467,13 +1467,10 @@ public class PlaybackService extends Service {
             File f;
             try {
                 f = new File(new URI(location));
-            } catch (URISyntaxException e) {
-                return false;
-            } catch (IllegalArgumentException e) {
+            } catch (URISyntaxException | IllegalArgumentException e) {
                 return false;
             }
-            if (!f.isFile())
-                return false;
+            return f.isFile();
         }
         return true;
     }
@@ -1505,7 +1502,7 @@ public class PlaybackService extends Service {
 
     @MainThread
     public boolean canShuffle()  {
-        return (getMediaListSize() > 2) ? true : false;
+        return getMediaListSize() > 2;
     }
 
     @MainThread
@@ -1520,7 +1517,7 @@ public class PlaybackService extends Service {
 
     @MainThread
     public boolean hasPlaylist()  {
-        return (getMediaListSize() > 1) ? true : false;
+        return getMediaListSize() > 1;
     }
 
     @MainThread
@@ -1929,8 +1926,8 @@ public class PlaybackService extends Service {
     }
 
     @MainThread
-    public int setVolume(int volume) {
-        return mMediaPlayer.setVolume(volume);
+    public void setVolume(int volume) {
+        mMediaPlayer.setVolume(volume);
     }
 
     @MainThread
