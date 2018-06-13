@@ -55,22 +55,14 @@ dependencies {
     api 'de.mrmaffen:libvlc-android:2.1.12@aar'
 }
 
-
 group = publishedGroupId // Maven Group ID for the artifact
 version = libraryVersion
 
-//Properties properties = new Properties()
-//properties.load(project.rootProject.file('local.properties').newDataInputStream())
-
-// Place it at the end of the file
-//apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/installv1.gradle'
-//apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/bintrayv1.gradle'
-
 apply plugin: 'com.github.dcendents.android-maven'
+apply plugin: 'com.jfrog.bintray'
 
 install {
     repositories.mavenInstaller {
-        // This generates POM.xml with proper parameters
         pom {
             project {
                 packaging 'aar'
@@ -106,7 +98,7 @@ install {
     }
 }
 
-apply plugin: 'com.jfrog.bintray'
+// BINTRAY
 
 version = libraryVersion
 
