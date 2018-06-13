@@ -257,7 +257,10 @@ public class PlaybackService extends Service {
             loadLastPlaylist(TYPE_AUDIO, true);
         }
 
-        this.createNotificationChannel();
+        // On Android 26+ we need to create a notification channel for later use.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            createNotificationChannel();
+        }
 
         /*
         // TODO: Enable this if foreground issues arise on Oreo+
